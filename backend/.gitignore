@@ -1,28 +1,15 @@
-# Environment and secrets
+# Local environment
 .env
-.env.*
-!.env.example
 
-# Python
+# Virtual environment
+.venv/
+
+# Python cache
 __pycache__/
 *.py[cod]
-*$py.class
-.venv/
-venv/
-env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage
-htmlcov/
-
-# Local RAG/vector artifacts
-chroma_db/
-*.sqlite
-*.sqlite3
 
 # Logs
 *.log
-
-# Local temp files
-*.tmp

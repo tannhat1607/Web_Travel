@@ -1,60 +1,26 @@
-# Environment and secrets
-.env
-.env.*
-!.env.example
+# Local environment files
 backend/.env
 frontend/.env
 
-# Python
+# Python backend local files
+backend/.venv/
 __pycache__/
 *.py[cod]
-*$py.class
-.Python
-.venv/
-venv/
-env/
-backend/.venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage
-htmlcov/
 
-# FastAPI / local RAG artifacts
-backend/chroma_db/
-chroma_db/
-*.sqlite
-*.sqlite3
-
-# Node / Vite
-node_modules/
+# Frontend generated files
 frontend/node_modules/
-dist/
 frontend/dist/
-.vite/
 
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# Editors
+# Local editor / agent files
 .vscode/
-.idea/
-*.code-workspace
-
-# Local Codex/agent workspace files
 .agents/
 skills-lock.json
 
-# OS files
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Local generated documents/uploads
+# Local test/upload files
 *.pdf
-*.tmp
-~$*
+
+# Logs
+*.log
