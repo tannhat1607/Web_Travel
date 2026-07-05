@@ -1,0 +1,327 @@
+﻿/* Account settings page */
+.profile-settings-page {
+  width: min(1056px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 30px 0 72px;
+  display: grid;
+  grid-template-columns: 288px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.settings-sidebar,
+.settings-panel {
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.settings-sidebar {
+  overflow: hidden;
+  align-self: start;
+  position: sticky;
+  top: 98px;
+}
+
+.settings-user {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+}
+
+.settings-avatar {
+  width: 58px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  color: #667085;
+  background: #f5f7fa;
+  border: 1px solid #e5e7eb;
+  font-weight: 850;
+}
+
+.settings-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.settings-user strong,
+.settings-user small {
+  display: block;
+}
+
+.settings-user strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.settings-user small {
+  margin-top: 2px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.settings-priority {
+  margin: 0 16px 16px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  color: white;
+  background: linear-gradient(135deg, #b57950 0%, #d4a073 100%);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.settings-menu {
+  display: grid;
+  padding: 10px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.settings-menu span,
+.settings-menu button {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+  border: 0;
+  color: #1f2937;
+  background: transparent;
+  text-align: left;
+  font-weight: 760;
+}
+
+.settings-menu svg {
+  color: #0088ef;
+}
+
+.settings-menu button.active {
+  color: white;
+  background: #0a94ee;
+}
+
+.settings-menu button.active svg {
+  color: white;
+}
+
+.settings-menu button:not(.active):hover,
+.settings-menu span:hover {
+  background: #f3f8ff;
+}
+
+.settings-main {
+  min-width: 0;
+}
+
+.settings-main h1 {
+  margin: 2px 0 20px;
+  color: #111827;
+  font-size: 24px;
+  letter-spacing: -0.03em;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 18px;
+  border-bottom: 1px solid #cfd8e3;
+  margin-bottom: 14px;
+}
+
+.settings-tabs button {
+  min-height: 40px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #667085;
+  background: transparent;
+  font-weight: 850;
+}
+
+.settings-tabs button.active {
+  color: #0088ef;
+  border-bottom-color: #0088ef;
+}
+
+.settings-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.settings-panel {
+  overflow: hidden;
+}
+
+.settings-panel header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid #d9e2ec;
+}
+
+.settings-panel header h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.settings-panel header p {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 12px;
+}
+
+.settings-panel-body {
+  display: grid;
+  gap: 16px;
+  padding: 20px 22px 16px;
+}
+
+.settings-panel label {
+  display: grid;
+  gap: 7px;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.settings-panel input,
+.settings-panel select,
+.settings-panel textarea {
+  min-height: 38px;
+  border-radius: 5px;
+  border: 1px solid #cfd8e3;
+  padding: 8px 10px;
+  color: #111827;
+  background: #ffffff;
+  font-weight: 600;
+}
+
+.settings-panel input:disabled,
+.settings-panel select:disabled {
+  color: #98a2b3;
+  background: #f8fafc;
+}
+
+.settings-panel label small {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 16px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.settings-actions .primary-button,
+.settings-actions .ghost-button {
+  min-width: 74px;
+  min-height: 36px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.settings-actions .ghost-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.settings-panel.compact header {
+  padding: 15px 22px;
+}
+
+.settings-list-line {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 22px;
+  border-top: 1px solid #eef2f7;
+}
+
+.settings-list-line strong {
+  color: #111827;
+}
+
+.settings-list-line span {
+  color: #0b8f5a;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.compact-rules {
+  background: #f8fafc;
+  border-color: #d9e2ec;
+}
+
+@media (max-width: 980px) {
+  .profile-settings-page {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    position: static;
+  }
+
+  .settings-menu {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .profile-settings-page {
+    width: min(100% - 24px, 1056px);
+  }
+
+  .settings-row,
+  .settings-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-panel header,
+  .settings-panel-body,
+  .settings-list-line {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+@media (max-width: 720px) {
+  .stitch-hero h1 {
+    font-size: 42px;
+  }
+
+  .stitch-search,
+  .feature-strip div,
+  .tour-card,
+  .admin-card,
+  .table-card,
+  .summary-panel,
+  .form-panel,
+  .auth-card {
+    border-radius: 20px;
+  }
+
+  .tour-card img {
+    height: 230px;
+  }
+}
+

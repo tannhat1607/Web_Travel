@@ -3,7 +3,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_current_user
 from app.db.database import get_db
 from app.models.chat import ChatMessage, ChatSession
 from app.models.user import User
@@ -17,14 +17,16 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 def chat(
     payload: ChatRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
 ) -> ChatResponse:
     session_id = payload.session_id or str(uuid4())
     session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
     if session is None:
-        session = ChatSession(session_id=session_id, user_id=current_user.id)
+        session = ChatSession(session_id=session_id, user_id=current_user.id if current_user else None)
         db.add(session)
         db.flush()
+    elif current_user and session.user_id is None:
+        session.user_id = current_user.id
 
     rag_answer = answer_question(db=db, question=payload.message)
     retrieved_context = format_contexts(rag_answer.contexts)

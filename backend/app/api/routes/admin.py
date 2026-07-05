@@ -1,22 +1,51 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
 from app.db.database import get_db
 from app.models.booking import Booking, BookingStatus
+from app.models.chat import ChatMessage, ChatSession
 from app.models.payment import Payment, PaymentStatus
-from app.models.tour import Tour
+from app.models.review import Review
+from app.models.tour import Tour, TourImage, TourItinerary
 from app.models.user import User
 from app.schemas.booking import BookingRead, BookingUpdate
+from app.schemas.chat import ChatMessageRead, ChatSessionRead
 from app.schemas.dashboard import DashboardStats
 from app.schemas.payment import PaymentCreate, PaymentRead, PaymentUpdate
-from app.schemas.tour import TourCreate, TourRead, TourUpdate
+from app.schemas.review import ReviewRead, ReviewUpdate
+from app.schemas.tour import (
+    TourCreate,
+    TourImageCreate,
+    TourImageRead,
+    TourImageUpdate,
+    TourItineraryCreate,
+    TourItineraryRead,
+    TourItineraryUpdate,
+    TourRead,
+    TourUpdate,
+)
+from app.schemas.upload import ImageUploadRead
 from app.schemas.user import UserRead, UserUpdate
+from app.services.storage_service import upload_image_to_supabase
+from app.services.tour_knowledge_service import delete_tour_knowledge, sync_tour_knowledge
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def restore_booking_slots(booking: Booking) -> None:
+    booking.tour.available_slots += booking.adult_count + booking.child_count
+
+
+@router.post("/uploads/images", response_model=ImageUploadRead, status_code=status.HTTP_201_CREATED)
+async def upload_tour_image(
+    file: UploadFile = File(...),
+    _: User = Depends(require_admin),
+) -> ImageUploadRead:
+    return await upload_image_to_supabase(file)
 
 
 @router.get("/dashboard", response_model=DashboardStats)
@@ -90,6 +119,7 @@ def create_tour(
     db.add(tour)
     db.commit()
     db.refresh(tour)
+    sync_tour_knowledge(db, tour)
     return tour
 
 
@@ -113,6 +143,7 @@ def update_tour(
         setattr(tour, field, value)
     db.commit()
     db.refresh(tour)
+    sync_tour_knowledge(db, tour)
     return tour
 
 
@@ -127,6 +158,112 @@ def delete_tour(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour not found")
     db.delete(tour)
     db.commit()
+    delete_tour_knowledge(db, tour_id)
+
+
+@router.post("/tours/{tour_id}/images", response_model=TourImageRead, status_code=status.HTTP_201_CREATED)
+def create_tour_image(
+    tour_id: int,
+    payload: TourImageCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> TourImage:
+    tour = db.get(Tour, tour_id)
+    if tour is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour not found")
+    if payload.is_cover:
+        db.query(TourImage).filter(TourImage.tour_id == tour_id).update({"is_cover": False})
+        tour.image_url = payload.image_url
+    image = TourImage(tour_id=tour_id, **payload.model_dump())
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    return image
+
+
+@router.patch("/tour-images/{image_id}", response_model=TourImageRead)
+def update_tour_image(
+    image_id: int,
+    payload: TourImageUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> TourImage:
+    image = db.get(TourImage, image_id)
+    if image is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour image not found")
+    data = payload.model_dump(exclude_unset=True)
+    if data.get("is_cover") is True:
+        db.query(TourImage).filter(TourImage.tour_id == image.tour_id, TourImage.id != image_id).update({"is_cover": False})
+    for field, value in data.items():
+        setattr(image, field, value)
+    if image.is_cover:
+        image.tour.image_url = image.image_url
+    db.commit()
+    db.refresh(image)
+    return image
+
+
+@router.delete("/tour-images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tour_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> None:
+    image = db.get(TourImage, image_id)
+    if image is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour image not found")
+    db.delete(image)
+    db.commit()
+
+
+@router.post("/tours/{tour_id}/itineraries", response_model=TourItineraryRead, status_code=status.HTTP_201_CREATED)
+def create_tour_itinerary(
+    tour_id: int,
+    payload: TourItineraryCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> TourItinerary:
+    if db.get(Tour, tour_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour not found")
+    itinerary = TourItinerary(tour_id=tour_id, **payload.model_dump())
+    db.add(itinerary)
+    db.commit()
+    db.refresh(itinerary)
+    sync_tour_knowledge(db, itinerary.tour)
+    return itinerary
+
+
+@router.patch("/tour-itineraries/{itinerary_id}", response_model=TourItineraryRead)
+def update_tour_itinerary(
+    itinerary_id: int,
+    payload: TourItineraryUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> TourItinerary:
+    itinerary = db.get(TourItinerary, itinerary_id)
+    if itinerary is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour itinerary not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(itinerary, field, value)
+    db.commit()
+    db.refresh(itinerary)
+    sync_tour_knowledge(db, itinerary.tour)
+    return itinerary
+
+
+@router.delete("/tour-itineraries/{itinerary_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tour_itinerary(
+    itinerary_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> None:
+    itinerary = db.get(TourItinerary, itinerary_id)
+    if itinerary is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour itinerary not found")
+    tour = itinerary.tour
+    db.delete(itinerary)
+    db.commit()
+    sync_tour_knowledge(db, tour)
 
 
 @router.get("/bookings", response_model=list[BookingRead])
@@ -155,6 +292,66 @@ def update_booking(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(booking, field, value)
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+
+@router.patch("/bookings/{booking_id}/confirm", response_model=BookingRead)
+def confirm_booking(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Booking:
+    booking = db.get(Booking, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+    if booking.status == BookingStatus.cancelled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cancelled booking cannot be confirmed")
+    if booking.status == BookingStatus.completed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Completed booking cannot be confirmed again")
+    booking.status = BookingStatus.confirmed
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+
+@router.patch("/bookings/{booking_id}/cancel", response_model=BookingRead)
+def admin_cancel_booking(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Booking:
+    booking = db.get(Booking, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+    if booking.status == BookingStatus.cancelled:
+        return booking
+    if booking.status == BookingStatus.completed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Completed booking cannot be cancelled")
+    if booking.payment and booking.payment.status == PaymentStatus.paid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Paid booking cannot be cancelled")
+    restore_booking_slots(booking)
+    booking.status = BookingStatus.cancelled
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+
+@router.patch("/bookings/{booking_id}/complete", response_model=BookingRead)
+def complete_booking(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Booking:
+    booking = db.get(Booking, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+    if booking.status == BookingStatus.cancelled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cancelled booking cannot be completed")
+    if not booking.payment or booking.payment.status != PaymentStatus.paid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking must be paid before completion")
+    booking.status = BookingStatus.completed
     db.commit()
     db.refresh(booking)
     return booking
@@ -196,3 +393,137 @@ def update_payment(
     db.commit()
     db.refresh(payment)
     return payment
+
+
+@router.patch("/payments/{payment_id}/mark-paid", response_model=PaymentRead)
+def mark_payment_paid(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Payment:
+    payment = db.get(Payment, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    payment.status = PaymentStatus.paid
+    payment.paid_at = payment.paid_at or datetime.now(timezone.utc)
+    if payment.booking.status == BookingStatus.pending:
+        payment.booking.status = BookingStatus.confirmed
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@router.patch("/payments/{payment_id}/mark-failed", response_model=PaymentRead)
+def mark_payment_failed(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Payment:
+    payment = db.get(Payment, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    if payment.status == PaymentStatus.paid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Paid payment cannot be marked failed")
+    payment.status = PaymentStatus.failed
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@router.patch("/payments/{payment_id}/refund", response_model=PaymentRead)
+def refund_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Payment:
+    payment = db.get(Payment, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    if payment.status != PaymentStatus.paid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only paid payment can be refunded")
+    payment.status = PaymentStatus.refunded
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@router.get("/reviews", response_model=list[ReviewRead])
+def admin_list_reviews(
+    tour_id: int | None = None,
+    is_visible: bool | None = None,
+    skip: int = 0,
+    limit: int = Query(default=20, le=100),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> list[Review]:
+    query = db.query(Review)
+    if tour_id is not None:
+        query = query.filter(Review.tour_id == tour_id)
+    if is_visible is not None:
+        query = query.filter(Review.is_visible == is_visible)
+    return query.order_by(Review.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@router.patch("/reviews/{review_id}", response_model=ReviewRead)
+def admin_update_review(
+    review_id: int,
+    payload: ReviewUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Review:
+    review = db.get(Review, review_id)
+    if review is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(review, field, value)
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+@router.delete("/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_review(
+    review_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> None:
+    review = db.get(Review, review_id)
+    if review is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    db.delete(review)
+    db.commit()
+
+
+@router.get("/chat-sessions", response_model=list[ChatSessionRead])
+def admin_list_chat_sessions(
+    user_id: int | None = None,
+    skip: int = 0,
+    limit: int = Query(default=20, le=100),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> list[ChatSession]:
+    query = db.query(ChatSession)
+    if user_id is not None:
+        query = query.filter(ChatSession.user_id == user_id)
+    return query.order_by(ChatSession.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/chat-sessions/{session_id}/messages", response_model=list[ChatMessageRead])
+def admin_list_chat_messages(
+    session_id: str,
+    skip: int = 0,
+    limit: int = Query(default=50, le=200),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> list[ChatMessage]:
+    session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
+    return (
+        db.query(ChatMessage)
+        .filter(ChatMessage.chat_session_id == session.id)
+        .order_by(ChatMessage.created_at.asc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )

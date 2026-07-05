@@ -10,6 +10,12 @@ class ReviewCreate(BaseModel):
     comment: str | None = None
 
 
+class ReviewEligibility(BaseModel):
+    can_review: bool
+    booking_id: int | None = None
+    reason: str | None = None
+
+
 class ReviewUpdate(BaseModel):
     rating: int | None = None
     comment: str | None = None

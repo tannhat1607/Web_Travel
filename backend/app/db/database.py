@@ -23,8 +23,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-# Import all model classes once so SQLAlchemy can resolve string relationships
-# such as relationship("Booking") even when a route imports only one model.
-from app.db import base as _base  # noqa: E402,F401

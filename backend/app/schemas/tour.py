@@ -48,9 +48,65 @@ class TourUpdate(BaseModel):
     is_active: bool | None = None
 
 
+class TourImageBase(BaseModel):
+    image_url: str
+    alt_text: str | None = None
+    sort_order: int = 0
+    is_cover: bool = False
+
+
+class TourImageCreate(TourImageBase):
+    pass
+
+
+class TourImageUpdate(BaseModel):
+    image_url: str | None = None
+    alt_text: str | None = None
+    sort_order: int | None = None
+    is_cover: bool | None = None
+
+
+class TourImageRead(TourImageBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tour_id: int
+    created_at: datetime
+
+
+class TourItineraryBase(BaseModel):
+    day_number: int
+    title: str
+    description: str
+    meals: str | None = None
+    accommodation: str | None = None
+
+
+class TourItineraryCreate(TourItineraryBase):
+    pass
+
+
+class TourItineraryUpdate(BaseModel):
+    day_number: int | None = None
+    title: str | None = None
+    description: str | None = None
+    meals: str | None = None
+    accommodation: str | None = None
+
+
+class TourItineraryRead(TourItineraryBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tour_id: int
+    created_at: datetime
+
+
 class TourRead(TourBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     created_at: datetime
     updated_at: datetime
+    images: list[TourImageRead] = []
+    itineraries: list[TourItineraryRead] = []

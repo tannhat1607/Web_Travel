@@ -5,7 +5,7 @@ from app.models.contact import Contact
 from app.models.knowledge import KnowledgeDocument
 from app.models.payment import Payment
 from app.models.review import Review
-from app.models.tour import Tour
+from app.models.tour import Tour, TourImage, TourItinerary
 from app.models.user import User
 
 __all__ = [
@@ -18,5 +18,7 @@ __all__ = [
     "Payment",
     "Review",
     "Tour",
+    "TourImage",
+    "TourItinerary",
     "User",
 ]
