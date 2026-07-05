@@ -20,6 +20,8 @@ class Booking(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     tour_id: Mapped[int] = mapped_column(ForeignKey("tours.id", ondelete="CASCADE"), index=True, nullable=False)
+    promotion_id: Mapped[int | None] = mapped_column(ForeignKey("promotions.id", ondelete="SET NULL"), index=True)
+    promotion_code: Mapped[str | None] = mapped_column(String(50))
     customer_name: Mapped[str] = mapped_column(String(150), nullable=False)
     customer_email: Mapped[str] = mapped_column(String(150), nullable=False)
     customer_phone: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -33,5 +35,6 @@ class Booking(Base):
 
     user = relationship("User", back_populates="bookings")
     tour = relationship("Tour", back_populates="bookings")
+    promotion = relationship("Promotion")
     payment = relationship("Payment", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="booking")

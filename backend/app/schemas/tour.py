@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.promotion import TourPromotionRead
+
 
 class TourBase(BaseModel):
     title: str
@@ -108,5 +110,7 @@ class TourRead(TourBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    effective_price: Decimal | None = None
+    active_promotion: TourPromotionRead | None = None
     images: list[TourImageRead] = []
     itineraries: list[TourItineraryRead] = []

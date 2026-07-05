@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -9,7 +7,8 @@ from app.models.booking import Booking, BookingStatus
 from app.models.payment import PaymentStatus
 from app.models.tour import Tour
 from app.models.user import User
-from app.schemas.booking import BookingCreate, BookingRead
+from app.schemas.booking import BookingCreate, BookingQuoteCreate, BookingQuoteRead, BookingRead
+from app.services.promotion_service import get_code_promotion, normalize_promotion_code, quote_booking_total
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -18,36 +17,78 @@ def restore_booking_slots(booking: Booking) -> None:
     booking.tour.available_slots += booking.adult_count + booking.child_count
 
 
+def get_bookable_tour(db: Session, tour_id: int) -> Tour:
+    tour = db.get(Tour, tour_id)
+    if not tour or not tour.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour not found")
+    return tour
+
+
+def validate_passenger_count(adult_count: int, child_count: int) -> int:
+    total_people = adult_count + child_count
+    if total_people <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid passenger count")
+    return total_people
+
+
+@router.post("/quote", response_model=BookingQuoteRead)
+def quote_booking(
+    payload: BookingQuoteCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> BookingQuoteRead:
+    tour = get_bookable_tour(db, payload.tour_id)
+    validate_passenger_count(payload.adult_count, payload.child_count)
+    code_promotion = None
+    normalized_code = normalize_promotion_code(payload.promotion_code)
+    if normalized_code:
+        code_promotion = get_code_promotion(db, tour, normalized_code)
+        if code_promotion is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Promotion code is not valid")
+    quote = quote_booking_total(tour, payload.adult_count, payload.child_count, code_promotion)
+    return BookingQuoteRead(
+        **quote,
+        promotion_id=code_promotion.id if code_promotion else None,
+        promotion_code=code_promotion.code if code_promotion else None,
+        promotion_title=code_promotion.title if code_promotion else None,
+    )
+
+
 @router.post("", response_model=BookingRead, status_code=status.HTTP_201_CREATED)
 def create_booking(
     payload: BookingCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Booking:
-    tour = db.get(Tour, payload.tour_id)
-    if not tour or not tour.is_active:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour not found")
-
-    total_people = payload.adult_count + payload.child_count
-    if total_people <= 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid passenger count")
+    tour = get_bookable_tour(db, payload.tour_id)
+    total_people = validate_passenger_count(payload.adult_count, payload.child_count)
     if tour.available_slots < total_people:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough available slots")
 
-    total_price = tour.price * payload.adult_count + (tour.price * payload.child_count * Decimal("0.7"))
+    normalized_code = normalize_promotion_code(payload.promotion_code)
+    code_promotion = None
+    if normalized_code:
+        code_promotion = get_code_promotion(db, tour, normalized_code)
+        if code_promotion is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Promotion code is not valid")
+    quote = quote_booking_total(tour, payload.adult_count, payload.child_count, code_promotion)
     booking = Booking(
         user_id=current_user.id,
         tour_id=tour.id,
+        promotion_id=code_promotion.id if code_promotion else None,
+        promotion_code=code_promotion.code if code_promotion else None,
         customer_name=payload.customer_name,
         customer_email=payload.customer_email,
         customer_phone=payload.customer_phone,
         adult_count=payload.adult_count,
         child_count=payload.child_count,
-        total_price=total_price,
+        total_price=quote["total"],
         note=payload.note,
         status=BookingStatus.pending,
     )
     tour.available_slots -= total_people
+    if code_promotion:
+        code_promotion.used_count += 1
     db.add(booking)
     db.commit()
     db.refresh(booking)

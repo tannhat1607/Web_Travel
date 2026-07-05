@@ -1,7 +1,9 @@
 import { CalendarDays, MapPin, Search, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { promotionApi } from "../../api/promotionApi";
 import { tourApi } from "../../api/tourApi";
+import { PromotionShowcase } from "../../components/promotions/PromotionShowcase.jsx";
 import { TourCard } from "../../components/tours/TourCard.jsx";
 import { fallbackTours } from "../../data/fallbackTours";
 
@@ -13,6 +15,7 @@ const heroSlides = [
 
 export function HomePage() {
   const [tours, setTours] = useState(fallbackTours);
+  const [promotions, setPromotions] = useState([]);
   const [destination, setDestination] = useState("");
   const [activeSlide, setActiveSlide] = useState(0);
   const navigate = useNavigate();
@@ -21,6 +24,7 @@ export function HomePage() {
     tourApi.list({ limit: 6 }).then((response) => {
       if (response.data.length) setTours(response.data);
     }).catch(() => {});
+    promotionApi.list({ limit: 6 }).then((response) => setPromotions(response.data)).catch(() => setPromotions([]));
   }, []);
 
   useEffect(() => {
@@ -89,6 +93,8 @@ export function HomePage() {
           <div><MapPin size={22} /><strong>Lọc theo nhu cầu</strong><span>Tìm theo điểm đến, ngân sách và thời lượng</span></div>
           <div><Sparkles size={22} /><strong>Hỏi trợ lý AI</strong><span>Nhận gợi ý dựa trên dữ liệu tour hiện có</span></div>
         </section>
+
+        <PromotionShowcase promotions={promotions} />
 
         <section className="section-heading">
           <div>

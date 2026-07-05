@@ -3,8 +3,9 @@ export function formatCurrency(value) {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
+    currencyDisplay: "code",
     maximumFractionDigits: 0,
-  }).format(Number(value));
+  }).format(Number(value)).replace(/\s+/g, " ");
 }
 
 export function statusLabel(status) {

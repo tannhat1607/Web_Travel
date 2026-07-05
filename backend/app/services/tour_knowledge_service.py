@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.models.knowledge import KnowledgeDocument
 from app.models.tour import Tour
+from app.services.promotion_service import is_promotion_active
 from app.services.rag_service import ingest_knowledge_documents
 
 
-def sync_tour_knowledge(db: Session, tour: Tour) -> KnowledgeDocument:
+def sync_tour_knowledge(db: Session, tour: Tour, rebuild_index: bool = True) -> KnowledgeDocument:
     document = (
         db.query(KnowledgeDocument)
         .filter(KnowledgeDocument.source_type == "tour", KnowledgeDocument.source_id == tour.id)
@@ -30,14 +31,17 @@ def sync_tour_knowledge(db: Session, tour: Tour) -> KnowledgeDocument:
         "duration_days": tour.duration_days,
         "duration_nights": tour.duration_nights,
         "price": str(tour.price),
+        "effective_price": str(tour.effective_price),
+        "active_promotion_id": tour.active_promotion.id if tour.active_promotion else None,
     }
     db.commit()
     db.refresh(document)
-    ingest_knowledge_documents(db)
+    if rebuild_index:
+        ingest_knowledge_documents(db)
     return document
 
 
-def delete_tour_knowledge(db: Session, tour_id: int) -> None:
+def delete_tour_knowledge(db: Session, tour_id: int, rebuild_index: bool = True) -> None:
     documents = (
         db.query(KnowledgeDocument)
         .filter(KnowledgeDocument.source_type == "tour", KnowledgeDocument.source_id == tour_id)
@@ -46,7 +50,8 @@ def delete_tour_knowledge(db: Session, tour_id: int) -> None:
     for document in documents:
         db.delete(document)
     db.commit()
-    ingest_knowledge_documents(db)
+    if rebuild_index:
+        ingest_knowledge_documents(db)
 
 
 def build_tour_knowledge_content(tour: Tour) -> str:
@@ -59,10 +64,38 @@ def build_tour_knowledge_content(tour: Tour) -> str:
         f"Khoi hanh: {tour.departure_location or 'Dang cap nhat'}",
         f"Thoi luong: {tour.duration_days} ngay {tour.duration_nights} dem",
         f"Gia tour: {_format_price(tour.price)} VND/nguoi",
+        f"Gia sau khuyen mai: {_format_price(tour.effective_price)} VND/nguoi",
         f"So cho toi da: {tour.max_people}",
         f"So cho con lai: {tour.available_slots}",
         f"Trang thai: {'Dang mo ban' if tour.is_active else 'Tam ngung'}",
     ]
+
+    promotion = tour.active_promotion
+    if promotion:
+        lines.extend(
+            [
+                "",
+                "Khuyen mai dang ap dung:",
+                f"Ten khuyen mai: {promotion.title}",
+                f"Loai giam: {_format_discount(promotion.discount_type, promotion.discount_value)}",
+                f"Gia goc: {_format_price(tour.price)} VND/nguoi",
+                f"Gia uu dai: {_format_price(tour.effective_price)} VND/nguoi",
+            ]
+        )
+        if promotion.terms:
+            lines.append(f"Dieu kien: {promotion.terms}")
+
+    code_promotions = [
+        item
+        for item in tour.promotions or []
+        if item.code and not item.auto_apply and is_promotion_active(item)
+    ]
+    if code_promotions:
+        lines.extend(["", "Ma giam gia co the nhap them khi dat tour:"])
+        for item in code_promotions:
+            lines.append(f"Ma {item.code}: {item.title}, {_format_discount(item.discount_type, item.discount_value)}")
+            if item.terms:
+                lines.append(f"Dieu kien ma {item.code}: {item.terms}")
 
     _append_section(lines, "Tom tat", tour.short_description)
     _append_section(lines, "Mo ta chi tiet", tour.description)
@@ -89,7 +122,7 @@ def build_tour_knowledge_content(tour: Tour) -> str:
             f"Hoi: Tour {tour.title} di dau?",
             f"Dap: Tour di {tour.destination}.",
             f"Hoi: Tour {tour.title} gia bao nhieu?",
-            f"Dap: Gia tour la {_format_price(tour.price)} VND/nguoi.",
+            f"Dap: Gia tour hien tai la {_format_price(tour.effective_price)} VND/nguoi.",
             f"Hoi: Tour {tour.title} keo dai bao lau?",
             f"Dap: Tour keo dai {tour.duration_days} ngay {tour.duration_nights} dem.",
         ]
@@ -104,3 +137,11 @@ def _append_section(lines: list[str], title: str, content: str | None) -> None:
 
 def _format_price(price: Decimal) -> str:
     return f"{int(price):,}".replace(",", ".")
+
+
+def _format_discount(discount_type, discount_value: Decimal) -> str:
+    value = Decimal(discount_value)
+    if getattr(discount_type, "value", discount_type) == "percent":
+        percent = int(value) if value == value.to_integral_value() else value
+        return f"Giam {percent}%"
+    return f"Giam {_format_price(value)} VND"

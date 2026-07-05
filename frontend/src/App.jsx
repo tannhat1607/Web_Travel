@@ -19,6 +19,7 @@ import { DashboardPage } from "./pages/admin/DashboardPage.jsx";
 import { TourManagePage } from "./pages/admin/TourManagePage.jsx";
 import { BookingManagePage } from "./pages/admin/BookingManagePage.jsx";
 import { UserManagePage } from "./pages/admin/UserManagePage.jsx";
+import { PromotionManagePage } from "./pages/admin/PromotionManagePage.jsx";
 import { KnowledgeManagePage } from "./pages/admin/KnowledgeManagePage.jsx";
 import { ContactManagePage } from "./pages/admin/ContactManagePage.jsx";
 import { ReviewManagePage } from "./pages/admin/ReviewManagePage.jsx";
@@ -74,6 +75,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="tours" element={<TourManagePage />} />
         <Route path="bookings" element={<BookingManagePage />} />
+        <Route path="promotions" element={<PromotionManagePage />} />
         <Route path="users" element={<UserManagePage />} />
         <Route path="reviews" element={<ReviewManagePage />} />
         <Route path="knowledge" element={<KnowledgeManagePage />} />

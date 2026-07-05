@@ -1,4 +1,4 @@
-import { BarChart3, BookOpenText, CalendarCheck, Inbox, LogOut, Map, MessageSquareText, Plane, Plus, Star, Users } from "lucide-react";
+import { BadgePercent, BarChart3, BookOpenText, CalendarCheck, Inbox, LogOut, Map, MessageSquareText, Plane, Plus, Star, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { adminApi } from "../../api/adminApi";
@@ -8,6 +8,7 @@ const navItems = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, end: true },
   { to: "/admin/tours", label: "Quản lý tour", icon: Map },
   { to: "/admin/bookings", label: "Booking", icon: CalendarCheck },
+  { to: "/admin/promotions", label: "Khuyến mãi", icon: BadgePercent },
   { to: "/admin/users", label: "Người dùng", icon: Users },
   { to: "/admin/reviews", label: "Đánh giá", icon: Star },
   { to: "/admin/knowledge", label: "Knowledge/RAG", icon: BookOpenText },

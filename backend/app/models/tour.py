@@ -4,6 +4,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
+from app.models.promotion import promotion_tours
 
 
 class Tour(Base):
@@ -34,6 +35,22 @@ class Tour(Base):
     reviews = relationship("Review", back_populates="tour", cascade="all, delete-orphan")
     images = relationship("TourImage", back_populates="tour", cascade="all, delete-orphan", order_by="TourImage.sort_order")
     itineraries = relationship("TourItinerary", back_populates="tour", cascade="all, delete-orphan", order_by="TourItinerary.day_number")
+    promotions = relationship("Promotion", secondary=promotion_tours, back_populates="tours")
+
+    @property
+    def active_promotion(self):
+        from app.services.promotion_service import get_best_auto_promotion
+
+        return get_best_auto_promotion(self)
+
+    @property
+    def effective_price(self) -> Decimal:
+        promotion = self.active_promotion
+        if promotion is None:
+            return self.price
+        from app.services.promotion_service import calculate_tour_unit_price
+
+        return calculate_tour_unit_price(Decimal(self.price), promotion)
 
 
 class TourImage(Base):

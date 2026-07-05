@@ -8,6 +8,10 @@ export const adminApi = {
   createTour: (payload) => axiosClient.post("/admin/tours", payload),
   updateTour: (id, payload) => axiosClient.patch(`/admin/tours/${id}`, payload),
   deleteTour: (id) => axiosClient.delete(`/admin/tours/${id}`),
+  promotions: (params) => axiosClient.get("/admin/promotions", { params }),
+  createPromotion: (payload) => axiosClient.post("/admin/promotions", payload),
+  updatePromotion: (id, payload) => axiosClient.patch(`/admin/promotions/${id}`, payload),
+  deletePromotion: (id) => axiosClient.delete(`/admin/promotions/${id}`),
   uploadImage: (formData) => axiosClient.post("/admin/uploads/images", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   }),

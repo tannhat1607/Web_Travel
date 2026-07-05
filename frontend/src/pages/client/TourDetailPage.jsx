@@ -53,6 +53,8 @@ export function TourDetailPage() {
 
   const gallery = tour.images?.length ? tour.images : [{ image_url: tour.image_url || fallbackTours[0].image_url, alt_text: tour.title }];
   const [coverImage, ...supportImages] = gallery;
+  const displayPrice = tour.effective_price || tour.price;
+  const hasPromotion = tour.active_promotion && Number(displayPrice) < Number(tour.price);
 
   return (
     <div className="page">
@@ -74,8 +76,15 @@ export function TourDetailPage() {
           <div className="detail-meta">
             <span><CalendarDays size={18} />{tour.duration_days} ngày {tour.duration_nights ? `${tour.duration_nights} đêm` : ""}</span>
             <span><Users size={18} />{tour.available_slots} chỗ còn</span>
-            <strong>{formatCurrency(tour.price)}</strong>
+            <strong>{formatCurrency(displayPrice)}</strong>
           </div>
+          {hasPromotion && (
+            <div className="promotion-callout">
+              <strong>{tour.active_promotion.title}</strong>
+              <span>Gia goc: <del>{formatCurrency(tour.price)}</del></span>
+              {tour.active_promotion.terms && <p>{tour.active_promotion.terms}</p>}
+            </div>
+          )}
           <Link className="primary-button wide" to={`/tours/${tour.id}/book`}>Đặt tour</Link>
         </div>
       </section>

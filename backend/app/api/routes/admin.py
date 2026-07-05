@@ -9,6 +9,7 @@ from app.db.database import get_db
 from app.models.booking import Booking, BookingStatus
 from app.models.chat import ChatMessage, ChatSession
 from app.models.payment import Payment, PaymentStatus
+from app.models.promotion import Promotion
 from app.models.review import Review
 from app.models.tour import Tour, TourImage, TourItinerary
 from app.models.user import User
@@ -16,6 +17,7 @@ from app.schemas.booking import BookingRead, BookingUpdate
 from app.schemas.chat import ChatMessageRead, ChatSessionRead
 from app.schemas.dashboard import DashboardStats
 from app.schemas.payment import PaymentCreate, PaymentRead, PaymentUpdate
+from app.schemas.promotion import PromotionCreate, PromotionRead, PromotionUpdate
 from app.schemas.review import ReviewRead, ReviewUpdate
 from app.schemas.tour import (
     TourCreate,
@@ -30,7 +32,9 @@ from app.schemas.tour import (
 )
 from app.schemas.upload import ImageUploadRead
 from app.schemas.user import UserRead, UserUpdate
+from app.services.promotion_service import normalize_promotion_code
 from app.services.storage_service import upload_image_to_supabase
+from app.services.rag_service import ingest_knowledge_documents
 from app.services.tour_knowledge_service import delete_tour_knowledge, sync_tour_knowledge
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -38,6 +42,28 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 def restore_booking_slots(booking: Booking) -> None:
     booking.tour.available_slots += booking.adult_count + booking.child_count
+
+
+def sync_promotion_tour_knowledge(db: Session, tours: list[Tour]) -> None:
+    unique_tours = {tour.id: tour for tour in tours if tour is not None}
+    for tour in unique_tours.values():
+        sync_tour_knowledge(db, tour, rebuild_index=False)
+    if unique_tours:
+        ingest_knowledge_documents(db)
+
+
+def set_promotion_tours(db: Session, promotion: Promotion, tour_ids: list[int]) -> None:
+    tours = []
+    if tour_ids:
+        tours = db.query(Tour).filter(Tour.id.in_(tour_ids)).all()
+        found_ids = {tour.id for tour in tours}
+        missing_ids = sorted(set(tour_ids) - found_ids)
+        if missing_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tour not found: {', '.join(str(item) for item in missing_ids)}",
+            )
+    promotion.tours = tours
 
 
 @router.post("/uploads/images", response_model=ImageUploadRead, status_code=status.HTTP_201_CREATED)
@@ -159,6 +185,83 @@ def delete_tour(
     db.delete(tour)
     db.commit()
     delete_tour_knowledge(db, tour_id)
+
+
+@router.get("/promotions", response_model=list[PromotionRead])
+def list_promotions(
+    skip: int = 0,
+    limit: int = Query(default=50, le=100),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> list[Promotion]:
+    return db.query(Promotion).order_by(Promotion.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@router.post("/promotions", response_model=PromotionRead, status_code=status.HTTP_201_CREATED)
+def create_promotion(
+    payload: PromotionCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Promotion:
+    data = payload.model_dump(exclude={"tour_ids"})
+    data["code"] = normalize_promotion_code(data.get("code"))
+    if data["code"]:
+        if db.query(Promotion).filter(Promotion.code == data["code"]).first():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Promotion code already exists")
+        data["auto_apply"] = False
+    promotion = Promotion(**data)
+    set_promotion_tours(db, promotion, payload.tour_ids)
+    db.add(promotion)
+    db.commit()
+    db.refresh(promotion)
+    sync_promotion_tour_knowledge(db, list(promotion.tours))
+    return promotion
+
+
+@router.patch("/promotions/{promotion_id}", response_model=PromotionRead)
+def update_promotion(
+    promotion_id: int,
+    payload: PromotionUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> Promotion:
+    promotion = db.get(Promotion, promotion_id)
+    if promotion is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Promotion not found")
+
+    previous_tours = list(promotion.tours)
+    data = payload.model_dump(exclude_unset=True)
+    tour_ids = data.pop("tour_ids", None)
+    if "code" in data:
+        data["code"] = normalize_promotion_code(data.get("code"))
+        if data["code"]:
+            existing = db.query(Promotion).filter(Promotion.code == data["code"], Promotion.id != promotion_id).first()
+            if existing:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Promotion code already exists")
+            data["auto_apply"] = False
+    for field, value in data.items():
+        setattr(promotion, field, value)
+    if tour_ids is not None:
+        set_promotion_tours(db, promotion, tour_ids)
+    db.commit()
+    db.refresh(promotion)
+    sync_promotion_tour_knowledge(db, previous_tours + list(promotion.tours))
+    return promotion
+
+
+@router.delete("/promotions/{promotion_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_promotion(
+    promotion_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> None:
+    promotion = db.get(Promotion, promotion_id)
+    if promotion is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Promotion not found")
+    affected_tours = list(promotion.tours)
+    db.delete(promotion)
+    db.commit()
+    sync_promotion_tour_knowledge(db, affected_tours)
 
 
 @router.post("/tours/{tour_id}/images", response_model=TourImageRead, status_code=status.HTTP_201_CREATED)
