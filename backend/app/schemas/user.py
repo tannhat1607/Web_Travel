@@ -40,6 +40,7 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     avatar_url: str | None = None
     is_active: bool | None = None
+    role: UserRole | None = None
 
 
 class UserProfileUpdate(BaseModel):
@@ -75,6 +76,20 @@ class UserRead(UserBase):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class PasswordResetRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class Token(BaseModel):

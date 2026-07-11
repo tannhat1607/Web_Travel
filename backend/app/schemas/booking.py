@@ -4,10 +4,12 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
 
 from app.models.booking import BookingStatus
+from app.schemas.payment import PaymentRead
 
 
 class BookingCreate(BaseModel):
     tour_id: int
+    departure_id: int | None = None
     customer_name: str
     customer_email: str
     customer_phone: str
@@ -19,6 +21,7 @@ class BookingCreate(BaseModel):
 
 class BookingQuoteCreate(BaseModel):
     tour_id: int
+    departure_id: int | None = None
     adult_count: int = 1
     child_count: int = 0
     promotion_code: str | None = None
@@ -38,6 +41,12 @@ class BookingQuoteRead(BaseModel):
 class BookingUpdate(BaseModel):
     status: BookingStatus | None = None
     note: str | None = None
+    refund_requested: bool | None = None
+    refund_reason: str | None = None
+
+
+class RefundRequestCreate(BaseModel):
+    reason: str
 
 
 class BookingRead(BaseModel):
@@ -46,6 +55,7 @@ class BookingRead(BaseModel):
     id: int
     user_id: int
     tour_id: int
+    departure_id: int | None = None
     customer_name: str
     customer_email: str
     customer_phone: str
@@ -58,3 +68,12 @@ class BookingRead(BaseModel):
     status: BookingStatus
     created_at: datetime
     updated_at: datetime
+    tour_title: str | None = None
+    departure_at: datetime | None = None
+    payment: PaymentRead | None = None
+    refund_requested: bool = False
+    refund_reason: str | None = None
+    refund_requested_at: datetime | None = None
+    refund_status: str | None = None
+    refund_admin_note: str | None = None
+    refund_resolved_at: datetime | None = None

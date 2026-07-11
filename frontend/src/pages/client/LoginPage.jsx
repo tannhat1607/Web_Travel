@@ -1,11 +1,16 @@
 import { ArrowRight, Lock, Mail, Plane, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authApi } from "../../api/authApi";
 import { login } from "../../store/authStore";
 
 export function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [resetMode, setResetMode] = useState(false);
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
   async function submit(event) {
@@ -16,6 +21,29 @@ export function LoginPage() {
       navigate(user.role === "admin" ? "/admin" : "/");
     } catch (err) {
       setError(err.response?.data?.detail || err.message || "Email hoặc mật khẩu không đúng.");
+    }
+  }
+
+  async function requestReset() {
+    setError("");
+    if (!form.email) return setError("Nhập email để lấy mã đặt lại.");
+    const response = await authApi.forgotPassword({ email: form.email });
+    if (!response.data.reset_token) return setError("Không tìm thấy tài khoản demo với email này.");
+    setResetToken(response.data.reset_token);
+    setResetMode(true);
+    setMessage("Đã tạo mã đặt lại demo. Nhập mật khẩu mới bên dưới.");
+  }
+
+  async function resetPassword() {
+    setError("");
+    try {
+      await authApi.resetPassword({ token: resetToken, new_password: newPassword });
+      setResetMode(false);
+      setResetToken("");
+      setNewPassword("");
+      setMessage("Đã đổi mật khẩu. Bạn có thể đăng nhập.");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Không thể đặt lại mật khẩu.");
     }
   }
 
@@ -46,6 +74,7 @@ export function LoginPage() {
         </div>
 
         {error && <div className="alert error">{error}</div>}
+        {message && <div className="alert success">{message}</div>}
 
         <label className="auth-field">
           Email
@@ -60,6 +89,17 @@ export function LoginPage() {
             />
           </span>
         </label>
+
+        {resetMode && (
+          <label className="auth-field">
+            Mật khẩu mới
+            <span><Lock size={18} /><input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Ít nhất 8 ký tự, đủ chữ hoa, số và ký tự đặc biệt" /></span>
+          </label>
+        )}
+
+        <button className="link-button" type="button" onClick={resetMode ? resetPassword : requestReset}>
+          {resetMode ? "Xác nhận mật khẩu mới" : "Quên mật khẩu?"}
+        </button>
 
         <label className="auth-field">
           Mật khẩu

@@ -12,6 +12,8 @@ import { TourListPage } from "./pages/client/TourListPage.jsx";
 import { TourDetailPage } from "./pages/client/TourDetailPage.jsx";
 import { BookingPage } from "./pages/client/BookingPage.jsx";
 import { MyBookingsPage } from "./pages/client/MyBookingsPage.jsx";
+import { BookingDetailPage } from "./pages/client/BookingDetailPage.jsx";
+import { NotificationsPage } from "./pages/client/NotificationsPage.jsx";
 import { ProfilePage } from "./pages/client/ProfilePage.jsx";
 import { LoginPage } from "./pages/client/LoginPage.jsx";
 import { RegisterPage } from "./pages/client/RegisterPage.jsx";
@@ -24,6 +26,7 @@ import { KnowledgeManagePage } from "./pages/admin/KnowledgeManagePage.jsx";
 import { ContactManagePage } from "./pages/admin/ContactManagePage.jsx";
 import { ReviewManagePage } from "./pages/admin/ReviewManagePage.jsx";
 import { ChatHistoryPage } from "./pages/admin/ChatHistoryPage.jsx";
+import { ContentManagePage } from "./pages/admin/ContentManagePage.jsx";
 
 export default function App() {
   return (
@@ -52,6 +55,8 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/my-bookings/:id" element={<ProtectedRoute><BookingDetailPage /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
         <Route
           path="/profile"
           element={
@@ -73,7 +78,8 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="tours" element={<TourManagePage />} />
+        <Route path="tours" element={<TourManagePage mode="manage" />} />
+        <Route path="tours/new" element={<TourManagePage mode="create" />} />
         <Route path="bookings" element={<BookingManagePage />} />
         <Route path="promotions" element={<PromotionManagePage />} />
         <Route path="users" element={<UserManagePage />} />
@@ -81,6 +87,7 @@ export default function App() {
         <Route path="knowledge" element={<KnowledgeManagePage />} />
         <Route path="chats" element={<ChatHistoryPage />} />
         <Route path="contacts" element={<ContactManagePage />} />
+        <Route path="content" element={<ContentManagePage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

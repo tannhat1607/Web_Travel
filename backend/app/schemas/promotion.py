@@ -10,6 +10,7 @@ class PromotionBase(BaseModel):
     title: str
     code: str | None = None
     description: str | None = None
+    banner_image_url: str | None = None
     discount_type: PromotionDiscountType
     discount_value: Decimal
     start_at: datetime | None = None
@@ -35,6 +36,7 @@ class PromotionUpdate(BaseModel):
     title: str | None = None
     code: str | None = None
     description: str | None = None
+    banner_image_url: str | None = None
     discount_type: PromotionDiscountType | None = None
     discount_value: Decimal | None = None
     start_at: datetime | None = None

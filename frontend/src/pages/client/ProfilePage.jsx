@@ -35,6 +35,7 @@ export function ProfilePage() {
   const [error, setError] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const navigate = useNavigate();
 
   const passwordErrors = useMemo(() => {
@@ -109,6 +110,26 @@ export function ProfilePage() {
     }
   }
 
+  async function uploadAvatar(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setUploadingAvatar(true);
+    setError("");
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const response = await authApi.uploadAvatar(data);
+      update("avatar_url", response.data.avatar_url || "");
+      saveStoredUser(response.data);
+      setMessage("Đã cập nhật ảnh đại diện.");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Không thể upload ảnh đại diện.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
   return (
     <div className="profile-settings-page">
       <aside className="settings-sidebar">
@@ -127,14 +148,7 @@ export function ProfilePage() {
         </div>
 
         <nav className="settings-menu">
-          <span><WalletCards size={19} />0 điểm</span>
-          <span><CreditCard size={19} />Thanh toán</span>
-          <span><ReceiptText size={19} />Đặt chỗ của tôi</span>
-          <span><History size={19} />Danh sách giao dịch</span>
-          <span><WalletCards size={19} />Thanh toán & Hoàn tiền</span>
-          <span><Bell size={19} />Thông báo giá tour</span>
-          <span><CalendarCheck size={19} />Thông tin hành khách đã lưu</span>
-          <span><Mail size={19} />Cài đặt thông báo</span>
+          <button type="button" onClick={() => navigate("/my-bookings")}><ReceiptText size={19} />Đặt chỗ & giao dịch</button>
           <button className="active" type="button"><Settings size={19} />Tài khoản</button>
           <button type="button" onClick={handleLogout}><LogOut size={19} />Đăng xuất</button>
         </nav>
@@ -161,30 +175,15 @@ export function ProfilePage() {
                   <input value={form.full_name} onChange={(event) => update("full_name", event.target.value)} required />
                   <small>Tên trong hồ sơ được rút ngắn từ họ tên của bạn.</small>
                 </label>
-                <div className="settings-row">
-                  <label>
-                    Giới tính
-                    <select disabled defaultValue="Nam">
-                      <option>Nam</option>
-                      <option>Nữ</option>
-                      <option>Khác</option>
-                    </select>
-                  </label>
-                  <label>
-                    Ngày sinh
-                    <input disabled placeholder="Chưa hỗ trợ" />
-                  </label>
-                </div>
-                <label>
-                  Thành phố cư trú
-                  <input disabled placeholder="Thành phố cư trú" />
-                </label>
                 <label>
                   Avatar URL
                   <input value={form.avatar_url} onChange={(event) => update("avatar_url", event.target.value)} placeholder="https://..." />
                 </label>
+                <label className="upload-drop compact-upload">
+                  {uploadingAvatar ? "Đang upload..." : "Chọn ảnh đại diện từ máy"}
+                  <input type="file" accept="image/*" onChange={uploadAvatar} disabled={uploadingAvatar} />
+                </label>
                 <div className="settings-actions">
-                  <button className="ghost-button" type="button" disabled>Có lẽ để sau</button>
                   <button className="primary-button" type="submit"><Save size={16} />Lưu</button>
                 </div>
               </div>

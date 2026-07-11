@@ -1,6 +1,8 @@
 import { BookOpen, Clock, Map, PlaneTakeoff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { contentApi } from "../../api/contentApi";
 
-const guides = [
+const fallbackGuides = [
   {
     icon: PlaneTakeoff,
     title: "Chuẩn bị trước khi đặt tour",
@@ -25,6 +27,8 @@ const guides = [
 ];
 
 export function TravelGuidesPage() {
+  const [guides,setGuides]=useState(fallbackGuides);
+  useEffect(()=>{contentApi.list({content_type:"guide"}).then(response=>{if(response.data.length)setGuides(response.data.map(item=>({icon:BookOpen,title:item.title,tag:"Cẩm nang",minutes:"5 phút đọc",text:item.excerpt||item.content})))})},[]);
   return (
     <div className="page content-page">
       <section className="content-hero guides-hero">

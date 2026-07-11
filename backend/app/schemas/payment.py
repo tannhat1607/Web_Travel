@@ -13,6 +13,11 @@ class PaymentCreate(BaseModel):
     transaction_code: str | None = None
 
 
+class PaymentSimulationCreate(BaseModel):
+    method: PaymentMethod = PaymentMethod.momo
+    succeed: bool = True
+
+
 class PaymentUpdate(BaseModel):
     method: PaymentMethod | None = None
     status: PaymentStatus | None = None

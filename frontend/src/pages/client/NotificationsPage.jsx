@@ -1,0 +1,4 @@
+import { useEffect,useState } from "react";
+import { Link } from "react-router-dom";
+import { notificationApi } from "../../api/notificationApi";
+export function NotificationsPage(){const [items,setItems]=useState([]);const load=()=>notificationApi.list().then(r=>setItems(r.data));useEffect(load,[]);async function mark(item){if(!item.is_read)await notificationApi.read(item.id);load()}return <div className="page"><section className="page-title"><span className="eyebrow">Tài khoản</span><h1>Thông báo</h1></section><div className="notification-list">{items.map(item=><article className={item.is_read?"":"unread"} key={item.id}><div><strong>{item.title}</strong><p>{item.message}</p><small>{new Date(item.created_at).toLocaleString("vi-VN")}</small></div>{item.link&&<Link to={item.link} onClick={()=>mark(item)}>Xem chi tiết</Link>}</article>)}</div></div>}

@@ -104,6 +104,31 @@ class TourItineraryRead(TourItineraryBase):
     created_at: datetime
 
 
+class TourDepartureBase(BaseModel):
+    departure_at: datetime
+    capacity: int = 20
+    available_slots: int = 20
+    is_active: bool = True
+
+
+class TourDepartureCreate(TourDepartureBase):
+    pass
+
+
+class TourDepartureUpdate(BaseModel):
+    departure_at: datetime | None = None
+    capacity: int | None = None
+    available_slots: int | None = None
+    is_active: bool | None = None
+
+
+class TourDepartureRead(TourDepartureBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    tour_id: int
+    created_at: datetime
+
+
 class TourRead(TourBase):
     model_config = ConfigDict(from_attributes=True)
 
@@ -114,3 +139,4 @@ class TourRead(TourBase):
     active_promotion: TourPromotionRead | None = None
     images: list[TourImageRead] = []
     itineraries: list[TourItineraryRead] = []
+    departures: list[TourDepartureRead] = []

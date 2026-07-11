@@ -17,6 +17,8 @@ export function HomePage() {
   const [tours, setTours] = useState(fallbackTours);
   const [promotions, setPromotions] = useState([]);
   const [destination, setDestination] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [durationDays, setDurationDays] = useState("");
   const [activeSlide, setActiveSlide] = useState(0);
   const navigate = useNavigate();
 
@@ -36,7 +38,11 @@ export function HomePage() {
 
   function search(event) {
     event.preventDefault();
-    navigate(`/tours${destination ? `?destination=${encodeURIComponent(destination)}` : ""}`);
+    const params = new URLSearchParams();
+    if (destination) params.set("destination", destination);
+    if (maxPrice) params.set("max_price", maxPrice);
+    if (durationDays) params.set("duration_days", durationDays);
+    navigate(`/tours${params.size ? `?${params.toString()}` : ""}`);
   }
 
   return (
@@ -65,21 +71,21 @@ export function HomePage() {
             <label>
               <WalletCards size={22} />
               <span>Ngân sách</span>
-              <select defaultValue="">
+              <select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}>
                 <option value="">Linh hoạt</option>
-                <option>Dưới 3 triệu</option>
-                <option>3 - 5 triệu</option>
-                <option>Trên 5 triệu</option>
+                <option value="3000000">Dưới 3 triệu</option>
+                <option value="5000000">Dưới 5 triệu</option>
+                <option value="10000000">Dưới 10 triệu</option>
               </select>
             </label>
             <label>
               <CalendarDays size={22} />
               <span>Thời gian</span>
-              <select defaultValue="">
+              <select value={durationDays} onChange={(event) => setDurationDays(event.target.value)}>
                 <option value="">Mọi lịch trình</option>
-                <option>1 ngày</option>
-                <option>3 ngày 2 đêm</option>
-                <option>4 ngày trở lên</option>
+                <option value="1">1 ngày</option>
+                <option value="3">3 ngày 2 đêm</option>
+                <option value="4">4 ngày</option>
               </select>
             </label>
             <button type="submit"><Search size={18} />Tìm kiếm</button>

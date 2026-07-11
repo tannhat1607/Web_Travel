@@ -6,6 +6,7 @@ export function KnowledgeManagePage() {
   const [documents, setDocuments] = useState([]);
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [search, setSearch] = useState("");
 
   function load() {
     adminApi.knowledge({ source_type: "upload" }).then((response) => setDocuments(response.data)).catch(() => setDocuments([]));
@@ -15,7 +16,7 @@ export function KnowledgeManagePage() {
 
   async function remove(id) {
     await adminApi.deleteKnowledge(id);
-    setMessage("Da xoa tai lieu PDF va cap nhat RAG.");
+    setMessage("Đã xóa tài liệu PDF và cập nhật RAG.");
     load();
   }
 
@@ -30,7 +31,7 @@ export function KnowledgeManagePage() {
       formData.append("title", file.name);
       formData.append("source_type", "upload");
       await adminApi.uploadKnowledge(formData);
-      setMessage("Da upload PDF va cap nhat RAG.");
+      setMessage("Đã upload PDF và cập nhật RAG.");
       load();
     } finally {
       setUploading(false);
@@ -45,14 +46,15 @@ export function KnowledgeManagePage() {
         </div>
         {message && <div className="alert success">{message}</div>}
         <label className="upload-drop">
-          <FileUp size={18} />{uploading ? "Dang upload..." : "Upload PDF bo sung"}
+          <FileUp size={18} />{uploading ? "Đang upload..." : "Upload PDF bổ sung"}
           <input type="file" accept=".pdf,application/pdf" onChange={uploadFile} disabled={uploading} />
         </label>
       </section>
       <section className="admin-card">
-        <h2>Tai lieu PDF bo sung</h2>
+        <h2>Tài liệu PDF bổ sung</h2>
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tài liệu" />
         <div className="knowledge-list">
-          {documents.map((document) => (
+          {documents.filter((document) => `${document.title} ${document.content}`.toLowerCase().includes(search.toLowerCase())).map((document) => (
             <article key={document.id}>
               <div>
                 <strong>{document.title}</strong>

@@ -4,6 +4,7 @@ import { adminApi } from "../../api/adminApi";
 export function ContactManagePage() {
   const [contacts, setContacts] = useState([]);
   const [replyText, setReplyText] = useState({});
+  const [message, setMessage] = useState("");
 
   function load() {
     adminApi.contacts().then((response) => setContacts(response.data)).catch(() => setContacts([]));
@@ -12,8 +13,13 @@ export function ContactManagePage() {
   useEffect(() => load(), []);
 
   async function reply(id) {
+    if (!replyText[id]?.trim()) {
+      setMessage("Vui lòng nhập nội dung phản hồi.");
+      return;
+    }
     await adminApi.replyContact(id, { reply: replyText[id] || "" });
     setReplyText((prev) => ({ ...prev, [id]: "" }));
+    setMessage("Đã lưu phản hồi. Chế độ demo không gửi email ra ngoài.");
     load();
   }
 
@@ -23,6 +29,7 @@ export function ContactManagePage() {
         <span className="eyebrow">Liên hệ</span>
         <h1>Phản hồi khách hàng</h1>
       </section>
+      {message && <div className="alert success">{message}</div>}
       <div className="contact-grid">
         {contacts.map((contact) => (
           <article className="admin-card" key={contact.id}>

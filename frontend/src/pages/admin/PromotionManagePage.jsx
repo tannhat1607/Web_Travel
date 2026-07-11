@@ -1,4 +1,4 @@
-import { BadgePercent, Copy, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { BadgePercent, Copy, ImagePlus, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminApi } from "../../api/adminApi";
 import { formatCurrency } from "../../utils/format";
@@ -7,6 +7,7 @@ const initialForm = {
   title: "",
   code: "",
   description: "",
+  banner_image_url: "",
   discount_type: "percent",
   discount_value: 10,
   start_at: "",
@@ -41,6 +42,7 @@ export function PromotionManagePage() {
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   useEffect(() => {
     load();
@@ -75,6 +77,7 @@ export function PromotionManagePage() {
       title: promotion.title || "",
       code: promotion.code || "",
       description: promotion.description || "",
+      banner_image_url: promotion.banner_image_url || "",
       discount_type: promotion.discount_type || "percent",
       discount_value: Number(promotion.discount_value || 0),
       start_at: toDateTimeLocal(promotion.start_at),
@@ -101,6 +104,7 @@ export function PromotionManagePage() {
       title: form.title,
       code: form.auto_apply ? null : form.code.trim().toUpperCase(),
       description: form.description || null,
+      banner_image_url: form.banner_image_url || null,
       discount_type: form.discount_type,
       discount_value: Number(form.discount_value),
       start_at: fromDateTimeLocal(form.start_at),
@@ -146,6 +150,25 @@ export function PromotionManagePage() {
     setMessage(`Đã copy mã ${code}.`);
   }
 
+  async function uploadBanner(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingBanner(true);
+    setError("");
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const response = await adminApi.uploadImage(data);
+      update("banner_image_url", response.data.image_url);
+      setMessage("Đã upload ảnh banner. Bấm lưu để áp dụng cho khuyến mãi.");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Không thể upload ảnh banner.");
+    } finally {
+      setUploadingBanner(false);
+      event.target.value = "";
+    }
+  }
+
   return (
     <div className="admin-page two-column-admin promotion-admin-page">
       <section className="admin-card">
@@ -168,6 +191,20 @@ export function PromotionManagePage() {
             <label>Mã giảm giá<input value={form.code} onChange={(event) => update("code", event.target.value.toUpperCase())} placeholder="VD: HANOI10" required /></label>
           )}
           <label>Mô tả<textarea rows={3} value={form.description} onChange={(event) => update("description", event.target.value)} /></label>
+          <div className="promotion-banner-field">
+            <span>Ảnh banner khuyến mãi</span>
+            {form.banner_image_url && (
+              <div className="promotion-banner-preview">
+                <img src={form.banner_image_url} alt="Xem trước banner khuyến mãi" />
+                <button type="button" onClick={() => update("banner_image_url", "")} aria-label="Xóa ảnh banner"><X size={16} /></button>
+              </div>
+            )}
+            <label className="upload-drop compact-upload">
+              <ImagePlus size={18} />{uploadingBanner ? "Đang upload..." : form.banner_image_url ? "Thay ảnh banner" : "Upload ảnh banner"}
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={uploadBanner} disabled={uploadingBanner} />
+            </label>
+            <small>Nên dùng ảnh ngang tỉ lệ 16:5, định dạng JPG, PNG hoặc WEBP.</small>
+          </div>
           <div className="form-row">
             <label>Loại giảm
               <select value={form.discount_type} onChange={(event) => update("discount_type", event.target.value)}>

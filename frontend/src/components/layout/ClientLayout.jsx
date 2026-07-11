@@ -97,27 +97,18 @@ export function ClientLayout() {
                     <Link to="/profile" onClick={() => setAccountOpen(false)}>
                       <UserCog size={20} />Chỉnh sửa hồ sơ
                     </Link>
-                    <button type="button" disabled>
-                      <CreditCard size={20} />Thẻ của tôi
-                    </button>
-                    <button type="button" disabled>
-                      <History size={20} />Danh sách giao dịch
-                    </button>
                     <Link to="/my-bookings" onClick={() => setAccountOpen(false)}>
                       <ReceiptText size={20} />Đặt chỗ của tôi
                     </Link>
-                    <button type="button" disabled>
-                      <WalletCards size={20} />Hoàn tiền <small>Mới</small>
-                    </button>
-                    <button type="button" disabled>
-                      <Bell size={20} />Thông báo giá tour
-                    </button>
-                    <button type="button" disabled>
-                      <CalendarCheck size={20} />Thông tin hành khách
-                    </button>
-                    <button type="button" disabled>
+                    <Link to="/my-bookings" onClick={() => setAccountOpen(false)}>
+                      <History size={20} />Giao dịch & thanh toán
+                    </Link>
+                    <Link to="/#promotions" onClick={() => setAccountOpen(false)}>
                       <Gift size={20} />Khuyến mãi
-                    </button>
+                    </Link>
+                    <Link to="/notifications" onClick={() => setAccountOpen(false)}>
+                      <Bell size={20} />Thông báo
+                    </Link>
                     <button type="button" className="account-logout" onClick={handleLogout}>
                       <LogOut size={20} />Đăng xuất
                     </button>

@@ -1,20 +1,27 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.database import get_db
 from app.models.booking import Booking, BookingStatus
-from app.models.payment import PaymentStatus
-from app.models.tour import Tour
+from app.models.payment import Payment, PaymentStatus
+from app.models.notification import Notification
+from app.models.tour import Tour, TourDeparture
 from app.models.user import User
-from app.schemas.booking import BookingCreate, BookingQuoteCreate, BookingQuoteRead, BookingRead
+from app.schemas.booking import BookingCreate, BookingQuoteCreate, BookingQuoteRead, BookingRead, RefundRequestCreate
+from app.schemas.payment import PaymentRead, PaymentSimulationCreate
 from app.services.promotion_service import get_code_promotion, normalize_promotion_code, quote_booking_total
+from app.services.invoice_service import booking_invoice_pdf
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 
 def restore_booking_slots(booking: Booking) -> None:
-    booking.tour.available_slots += booking.adult_count + booking.child_count
+    target = booking.departure or booking.tour
+    target.available_slots += booking.adult_count + booking.child_count
 
 
 def get_bookable_tour(db: Session, tour_id: int) -> Tour:
@@ -62,7 +69,11 @@ def create_booking(
 ) -> Booking:
     tour = get_bookable_tour(db, payload.tour_id)
     total_people = validate_passenger_count(payload.adult_count, payload.child_count)
-    if tour.available_slots < total_people:
+    departure = db.get(TourDeparture, payload.departure_id) if payload.departure_id else None
+    if departure and (departure.tour_id != tour.id or not departure.is_active):
+        raise HTTPException(status_code=400, detail="Departure is not available")
+    inventory = departure or tour
+    if inventory.available_slots < total_people:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough available slots")
 
     normalized_code = normalize_promotion_code(payload.promotion_code)
@@ -75,6 +86,7 @@ def create_booking(
     booking = Booking(
         user_id=current_user.id,
         tour_id=tour.id,
+        departure_id=departure.id if departure else None,
         promotion_id=code_promotion.id if code_promotion else None,
         promotion_code=code_promotion.code if code_promotion else None,
         customer_name=payload.customer_name,
@@ -86,7 +98,7 @@ def create_booking(
         note=payload.note,
         status=BookingStatus.pending,
     )
-    tour.available_slots -= total_people
+    inventory.available_slots -= total_people
     if code_promotion:
         code_promotion.used_count += 1
     db.add(booking)
@@ -108,6 +120,64 @@ def list_my_bookings(
     )
 
 
+@router.post("/{booking_id}/simulate-payment", response_model=PaymentRead)
+def simulate_payment(
+    booking_id: int,
+    payload: PaymentSimulationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Payment:
+    booking = db.get(Booking, booking_id)
+    if not booking or booking.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+    if booking.status == BookingStatus.cancelled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cancelled booking cannot be paid")
+    payment = booking.payment
+    if payment and payment.status in {PaymentStatus.paid, PaymentStatus.refunded}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment is already finalized")
+    if payment is None:
+        payment = Payment(booking_id=booking.id, method=payload.method, amount=booking.total_price)
+        db.add(payment)
+    payment.method = payload.method
+    payment.status = PaymentStatus.paid if payload.succeed else PaymentStatus.failed
+    payment.transaction_code = f"SIM-{booking.id}-{int(datetime.now(timezone.utc).timestamp())}"
+    payment.paid_at = datetime.now(timezone.utc) if payload.succeed else None
+    if payload.succeed and booking.status == BookingStatus.pending:
+        booking.status = BookingStatus.confirmed
+    db.add(Notification(user_id=booking.user_id, title="Thanh toán thành công" if payload.succeed else "Thanh toán thất bại", message=f"Giao dịch booking #{booking.id} đã được xử lý.", link=f"/my-bookings/{booking.id}"))
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@router.post("/{booking_id}/refund-request", response_model=BookingRead)
+def request_refund(
+    booking_id: int,
+    payload: RefundRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Booking:
+    booking = db.get(Booking, booking_id)
+    if not booking or booking.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+    if booking.status == BookingStatus.completed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Completed booking cannot be refunded")
+    if not booking.payment or booking.payment.status != PaymentStatus.paid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only paid booking can request a refund")
+    reason = payload.reason.strip()
+    if len(reason) < 5:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Refund reason is too short")
+    booking.refund_requested = True
+    booking.refund_reason = reason
+    booking.refund_requested_at = datetime.now(timezone.utc)
+    booking.refund_status = "pending"
+    booking.refund_admin_note = None
+    db.add(Notification(user_id=booking.user_id, title="Đã nhận yêu cầu hoàn tiền", message=f"Yêu cầu cho booking #{booking.id} đang chờ ADMIN xử lý.", link=f"/my-bookings/{booking.id}"))
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+
 @router.get("/{booking_id}", response_model=BookingRead)
 def get_my_booking(
     booking_id: int,
@@ -118,6 +188,13 @@ def get_my_booking(
     if not booking or booking.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
     return booking
+
+
+@router.get("/{booking_id}/invoice.pdf")
+def download_invoice(booking_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
+    booking = db.get(Booking, booking_id)
+    if not booking or booking.user_id != current_user.id: raise HTTPException(status_code=404, detail="Booking not found")
+    return Response(booking_invoice_pdf(booking), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="travelora-invoice-{booking.id}.pdf"'})
 
 
 @router.patch("/{booking_id}/cancel", response_model=BookingRead)

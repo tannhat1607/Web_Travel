@@ -1,16 +1,18 @@
 import { Eye, EyeOff, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminApi } from "../../api/adminApi";
+import { Pagination } from "../../components/common/Pagination.jsx";
 
 export function ReviewManagePage() {
   const [reviews, setReviews] = useState([]);
   const [filter, setFilter] = useState("");
+  const [page,setPage]=useState(1); const pageSize=10;
 
   function load() {
-    adminApi.reviews(filter ? { is_visible: filter === "visible" } : {}).then((response) => setReviews(response.data)).catch(() => setReviews([]));
+    adminApi.reviews({...(filter ? { is_visible: filter === "visible" } : {}),skip:(page-1)*pageSize,limit:pageSize}).then((response) => setReviews(response.data)).catch(() => setReviews([]));
   }
 
-  useEffect(() => load(), [filter]);
+  useEffect(() => load(), [filter,page]);
 
   async function toggle(review) {
     await adminApi.updateReview(review.id, { is_visible: !review.is_visible });
@@ -36,6 +38,7 @@ export function ReviewManagePage() {
           <option value="hidden">Đã ẩn</option>
         </select>
       </div>
+      <Pagination page={page} pageSize={pageSize} itemCount={reviews.length} onChange={setPage}/>
       <div className="table-card">
         <table>
           <thead><tr><th>Tour</th><th>User</th><th>Sao</th><th>Nội dung</th><th>Hiển thị</th><th></th></tr></thead>

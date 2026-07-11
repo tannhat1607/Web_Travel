@@ -1,6 +1,6 @@
-import { ImagePlus, Link as LinkIcon, Plus, Trash2, UploadCloud, X } from "lucide-react";
+import { ImagePlus, Link as LinkIcon, Pencil, Plus, Trash2, UploadCloud, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { adminApi } from "../../api/adminApi";
 
 const initialForm = {
@@ -31,16 +31,19 @@ const initialItinerary = {
   accommodation: "",
 };
 
-export function TourManagePage() {
+export function TourManagePage({ mode = "manage" }) {
   const [tours, setTours] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [itineraryForm, setItineraryForm] = useState(initialItinerary);
+  const [editingItineraryId, setEditingItineraryId] = useState(null);
+  const [departureForm, setDepartureForm] = useState({ departure_at: "", capacity: 20, available_slots: 20, is_active: true });
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [selectedImageFiles, setSelectedImageFiles] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const selectedTour = useMemo(() => tours.find((tour) => tour.id === editingId), [tours, editingId]);
   const selectedPreviewUrls = useMemo(() => selectedImageFiles.map((file) => ({
@@ -58,6 +61,10 @@ export function TourManagePage() {
   useEffect(() => loadTours(), []);
 
   useEffect(() => {
+    if (mode === "create") {
+      if (editingId) resetForm(false);
+      return;
+    }
     const tourId = Number(searchParams.get("tourId") || 0);
     if (!tourId || !tours.length) {
       if (!tourId) resetForm(false);
@@ -65,7 +72,7 @@ export function TourManagePage() {
     }
     const tour = tours.find((item) => item.id === tourId);
     if (tour && tour.id !== editingId) edit(tour, false);
-  }, [searchParams, tours]);
+  }, [searchParams, tours, mode]);
 
   function loadTours() {
     adminApi.tours().then((response) => {
@@ -86,6 +93,7 @@ export function TourManagePage() {
     setEditingId(tour.id);
     setForm({ ...initialForm, ...tour, image_url: tour.image_url || "" });
     setItineraryForm(initialItinerary);
+    setEditingItineraryId(null);
     setSelectedImageFiles([]);
     setMessage("");
     setError("");
@@ -96,6 +104,7 @@ export function TourManagePage() {
     setEditingId(null);
     setForm(initialForm);
     setItineraryForm(initialItinerary);
+    setEditingItineraryId(null);
     setSelectedImageFiles([]);
     setMessage("");
     setError("");
@@ -195,6 +204,7 @@ export function TourManagePage() {
           await attachTourImage(response.data.id, coverUrl, form.title || "Tour cover", 1, true);
         }
         setMessage(uploadedImages.length ? `Đã tạo tour và upload ${uploadedImages.length} ảnh.` : "Đã tạo tour.");
+        navigate(`/admin/tours?tourId=${response.data.id}`, { replace: true });
       }
 
       if (coverUrl) update("image_url", coverUrl);
@@ -267,15 +277,30 @@ export function TourManagePage() {
   async function addItinerary(event) {
     event.preventDefault();
     if (!editingId) return;
-    await adminApi.createTourItinerary(editingId, {
+    const payload = {
       ...itineraryForm,
       day_number: Number(itineraryForm.day_number),
       meals: itineraryForm.meals || null,
       accommodation: itineraryForm.accommodation || null,
-    });
+    };
+    if (editingItineraryId) await adminApi.updateTourItinerary(editingItineraryId, payload);
+    else await adminApi.createTourItinerary(editingId, payload);
     setItineraryForm({ ...initialItinerary, day_number: Number(itineraryForm.day_number) + 1 });
-    setMessage("Đã thêm lịch trình.");
+    setEditingItineraryId(null);
+    setMessage(editingItineraryId ? "Đã cập nhật lịch trình." : "Đã thêm lịch trình.");
     loadTours();
+  }
+
+  function editItinerary(item) {
+    setEditingItineraryId(item.id);
+    setItineraryForm({
+      day_number: item.day_number,
+      title: item.title || "",
+      description: item.description || "",
+      meals: item.meals || "",
+      accommodation: item.accommodation || "",
+    });
+    document.getElementById("itinerary-editor")?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   async function deleteItinerary(id) {
@@ -283,13 +308,58 @@ export function TourManagePage() {
     loadTours();
   }
 
+  async function addDeparture(event) {
+    event.preventDefault();
+    await adminApi.createTourDeparture(editingId, { ...departureForm, departure_at: new Date(departureForm.departure_at).toISOString(), capacity: Number(departureForm.capacity), available_slots: Number(departureForm.available_slots) });
+    setDepartureForm({ departure_at: "", capacity: 20, available_slots: 20, is_active: true });
+    setMessage("Đã thêm lịch khởi hành."); loadTours();
+  }
+
+  async function deleteDeparture(id) {
+    await adminApi.deleteTourDeparture(id); setMessage("Đã xóa lịch khởi hành."); loadTours();
+  }
+
+  if (mode === "manage" && !editingId) {
+    return (
+      <div className="admin-page tour-admin-layout">
+        <section className="admin-title tour-workspace-title">
+          <div><span className="eyebrow">Quản lý tour</span><h1>Chọn tour để chỉnh sửa</h1></div>
+          <p>Chỉnh thông tin, thư viện ảnh và lịch trình của những tour đã có.</p>
+        </section>
+        <div className="tour-manager-toolbar">
+          <span>{tours.length} tour trong hệ thống</span>
+          <button className="primary-button" type="button" onClick={() => navigate("/admin/tours/new")}><Plus size={16} />Thêm tour mới</button>
+        </div>
+        <section className="tour-manager-grid">
+          {tours.map((tour) => (
+            <button type="button" key={tour.id} onClick={() => setSearchParams({ tourId: String(tour.id) })}>
+              <span className="tour-manager-thumb">{tour.image_url ? <img src={tour.image_url} alt={tour.title} /> : <ImagePlus size={24} />}</span>
+              <span><strong>{tour.title}</strong><small>{tour.destination} · {tour.duration_days} ngày</small></span>
+            </button>
+          ))}
+          {!tours.length && <p className="muted">Chưa có tour. Hãy tạo tour đầu tiên.</p>}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-page tour-admin-layout">
-      <section className="admin-card tour-form-panel">
+      <section className="admin-title tour-workspace-title">
+        <div><span className="eyebrow">{mode === "create" ? "Thêm tour" : "Quản lý tour"}</span><h1>{mode === "create" ? "Tạo hành trình mới" : "Chỉnh sửa hành trình"}</h1></div>
+        <p>{mode === "create" ? "Nhập thông tin cơ bản. Sau khi lưu, bạn sẽ được chuyển sang trang quản lý ảnh và lịch trình." : `Đang cập nhật: ${form.title}`}</p>
+      </section>
+      <nav className="tour-workspace-nav" aria-label="Các phần quản lý tour">
+        <a href="#tour-information">Thông tin tour</a>
+        <a href="#tour-media" className={!editingId ? "disabled" : ""} aria-disabled={!editingId}>Thư viện ảnh</a>
+        <a href="#tour-itinerary" className={!editingId ? "disabled" : ""} aria-disabled={!editingId}>Lịch trình từng ngày</a>
+        <a href="#tour-departures" className={!editingId ? "disabled" : ""} aria-disabled={!editingId}>Lịch khởi hành</a>
+      </nav>
+      <section className="admin-card tour-form-panel" id="tour-information">
         <div className="card-header-row">
           <h2>{editingId ? "Sửa tour" : "Thêm tour"}</h2>
           <div className="inline-actions">
-            {editingId && <button className="ghost-button" onClick={() => resetForm()}>Tạo mới</button>}
+            {editingId && <button className="ghost-button" type="button" onClick={() => navigate("/admin/tours/new")}>Thêm tour khác</button>}
             {editingId && <button className="icon-button danger" onClick={() => remove(editingId)}><Trash2 size={16} /></button>}
           </div>
         </div>
@@ -358,7 +428,7 @@ export function TourManagePage() {
         </form>
 
         {editingId && (
-          <div className="nested-admin-block">
+          <div className="nested-admin-block tour-workspace-section" id="tour-media">
             <h3>Ảnh tour đã lưu</h3>
             <label className="upload-drop">
               <ImagePlus size={18} />{uploading ? "Đang upload..." : "Upload thêm nhiều ảnh"}
@@ -379,9 +449,9 @@ export function TourManagePage() {
         )}
 
         {editingId && (
-          <div className="nested-admin-block">
+          <div className="nested-admin-block tour-workspace-section" id="tour-itinerary">
             <h3>Lịch trình từng ngày</h3>
-            <form className="compact-form" onSubmit={addItinerary}>
+            <form className="compact-form" id="itinerary-editor" onSubmit={addItinerary}>
               <div className="form-row">
                 <label>Ngày<input type="number" value={itineraryForm.day_number} onChange={(event) => updateItinerary("day_number", event.target.value)} /></label>
                 <label>Tiêu đề<input value={itineraryForm.title} onChange={(event) => updateItinerary("title", event.target.value)} required /></label>
@@ -391,7 +461,10 @@ export function TourManagePage() {
                 <label>Bữa ăn<input value={itineraryForm.meals} onChange={(event) => updateItinerary("meals", event.target.value)} /></label>
                 <label>Lưu trú<input value={itineraryForm.accommodation} onChange={(event) => updateItinerary("accommodation", event.target.value)} /></label>
               </div>
-              <button className="ghost-button wide" type="submit">Thêm lịch trình</button>
+              <div className="inline-actions">
+                <button className="ghost-button wide" type="submit">{editingItineraryId ? "Lưu lịch trình" : "Thêm lịch trình"}</button>
+                {editingItineraryId && <button className="ghost-button" type="button" onClick={() => { setEditingItineraryId(null); setItineraryForm(initialItinerary); }}>Hủy sửa</button>}
+              </div>
             </form>
             <div className="itinerary-list">
               {(selectedTour?.itineraries || []).map((item) => (
@@ -399,9 +472,26 @@ export function TourManagePage() {
                   <strong>Ngày {item.day_number}: {item.title}</strong>
                   <p>{item.description}</p>
                   <small>{[item.meals, item.accommodation].filter(Boolean).join(" - ")}</small>
+                  <button className="icon-button" type="button" onClick={() => editItinerary(item)}><Pencil size={15} /></button>
                   <button className="icon-button danger" onClick={() => deleteItinerary(item.id)}><Trash2 size={15} /></button>
                 </article>
               ))}
+            </div>
+          </div>
+        )}
+        {editingId && (
+          <div className="nested-admin-block tour-workspace-section" id="tour-departures">
+            <h3>Lịch khởi hành</h3>
+            <form className="compact-form" onSubmit={addDeparture}>
+              <div className="form-row four">
+                <label>Ngày giờ<input type="datetime-local" value={departureForm.departure_at} onChange={(e) => setDepartureForm({ ...departureForm, departure_at: e.target.value })} required /></label>
+                <label>Sức chứa<input type="number" min="1" value={departureForm.capacity} onChange={(e) => setDepartureForm({ ...departureForm, capacity: e.target.value, available_slots: e.target.value })} /></label>
+                <label>Chỗ còn<input type="number" min="0" value={departureForm.available_slots} onChange={(e) => setDepartureForm({ ...departureForm, available_slots: e.target.value })} /></label>
+                <button className="primary-button" type="submit">Thêm chuyến</button>
+              </div>
+            </form>
+            <div className="itinerary-list">
+              {(selectedTour?.departures || []).map((item) => <article key={item.id}><strong>{new Date(item.departure_at).toLocaleString("vi-VN")}</strong><p>Còn {item.available_slots}/{item.capacity} chỗ</p><button className="icon-button danger" type="button" onClick={() => deleteDeparture(item.id)}><Trash2 size={15} /></button></article>)}
             </div>
           </div>
         )}

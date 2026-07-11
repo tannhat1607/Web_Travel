@@ -9,9 +9,10 @@ from app.db.database import get_db
 from app.models.booking import Booking, BookingStatus
 from app.models.chat import ChatMessage, ChatSession
 from app.models.payment import Payment, PaymentStatus
+from app.models.notification import Notification
 from app.models.promotion import Promotion
 from app.models.review import Review
-from app.models.tour import Tour, TourImage, TourItinerary
+from app.models.tour import Tour, TourDeparture, TourImage, TourItinerary
 from app.models.user import User
 from app.schemas.booking import BookingRead, BookingUpdate
 from app.schemas.chat import ChatMessageRead, ChatSessionRead
@@ -21,6 +22,9 @@ from app.schemas.promotion import PromotionCreate, PromotionRead, PromotionUpdat
 from app.schemas.review import ReviewRead, ReviewUpdate
 from app.schemas.tour import (
     TourCreate,
+    TourDepartureCreate,
+    TourDepartureRead,
+    TourDepartureUpdate,
     TourImageCreate,
     TourImageRead,
     TourImageUpdate,
@@ -41,7 +45,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 def restore_booking_slots(booking: Booking) -> None:
-    booking.tour.available_slots += booking.adult_count + booking.child_count
+    target = booking.departure or booking.tour
+    target.available_slots += booking.adult_count + booking.child_count
 
 
 def sync_promotion_tour_knowledge(db: Session, tours: list[Tour]) -> None:
@@ -81,18 +86,28 @@ def dashboard_stats(db: Session = Depends(get_db), _: User = Depends(require_adm
     total_bookings = db.query(func.count(Booking.id)).scalar() or 0
     pending_bookings = db.query(func.count(Booking.id)).filter(Booking.status == BookingStatus.pending).scalar() or 0
     completed_bookings = db.query(func.count(Booking.id)).filter(Booking.status == BookingStatus.completed).scalar() or 0
+    cancelled_bookings = db.query(func.count(Booking.id)).filter(Booking.status == BookingStatus.cancelled).scalar() or 0
+    paid_payments = db.query(func.count(Payment.id)).filter(Payment.status == PaymentStatus.paid).scalar() or 0
+    refunded_payments = db.query(func.count(Payment.id)).filter(Payment.status == PaymentStatus.refunded).scalar() or 0
     total_revenue = (
         db.query(func.coalesce(func.sum(Payment.amount), 0))
         .filter(Payment.status == PaymentStatus.paid)
         .scalar()
     )
+    revenue_rows = db.query(func.date(Payment.paid_at), func.coalesce(func.sum(Payment.amount), 0)).filter(Payment.status == PaymentStatus.paid, Payment.paid_at.isnot(None)).group_by(func.date(Payment.paid_at)).order_by(func.date(Payment.paid_at).desc()).limit(7).all()
+    top_rows = db.query(Tour.title, func.count(Booking.id)).join(Booking, Booking.tour_id == Tour.id).group_by(Tour.id, Tour.title).order_by(func.count(Booking.id).desc()).limit(5).all()
     return DashboardStats(
         total_users=total_users,
         total_tours=total_tours,
         total_bookings=total_bookings,
         pending_bookings=pending_bookings,
         completed_bookings=completed_bookings,
+        cancelled_bookings=cancelled_bookings,
+        paid_payments=paid_payments,
+        refunded_payments=refunded_payments,
         total_revenue=total_revenue,
+        revenue_by_day=[{"label": day.strftime("%d/%m"), "value": value} for day, value in reversed(revenue_rows)],
+        top_tours=[{"label": title, "value": count} for title, count in top_rows],
     )
 
 
@@ -369,6 +384,31 @@ def delete_tour_itinerary(
     sync_tour_knowledge(db, tour)
 
 
+@router.post("/tours/{tour_id}/departures", response_model=TourDepartureRead, status_code=status.HTTP_201_CREATED)
+def create_departure(tour_id: int, payload: TourDepartureCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)) -> TourDeparture:
+    if db.get(Tour, tour_id) is None:
+        raise HTTPException(status_code=404, detail="Tour not found")
+    departure = TourDeparture(tour_id=tour_id, **payload.model_dump())
+    db.add(departure); db.commit(); db.refresh(departure)
+    return departure
+
+
+@router.patch("/tour-departures/{departure_id}", response_model=TourDepartureRead)
+def update_departure(departure_id: int, payload: TourDepartureUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin)) -> TourDeparture:
+    departure = db.get(TourDeparture, departure_id)
+    if departure is None: raise HTTPException(status_code=404, detail="Departure not found")
+    for field, value in payload.model_dump(exclude_unset=True).items(): setattr(departure, field, value)
+    db.commit(); db.refresh(departure); return departure
+
+
+@router.delete("/tour-departures/{departure_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_departure(departure_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin)) -> None:
+    departure = db.get(TourDeparture, departure_id)
+    if departure is None: raise HTTPException(status_code=404, detail="Departure not found")
+    if departure.bookings: raise HTTPException(status_code=409, detail="Departure already has bookings")
+    db.delete(departure); db.commit()
+
+
 @router.get("/bookings", response_model=list[BookingRead])
 def admin_list_bookings(
     status_filter: BookingStatus | None = None,
@@ -544,10 +584,29 @@ def refund_payment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     if payment.status != PaymentStatus.paid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only paid payment can be refunded")
+    if payment.booking.status == BookingStatus.completed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Completed booking cannot be refunded")
     payment.status = PaymentStatus.refunded
+    booking = payment.booking
+    if booking.status not in {BookingStatus.cancelled, BookingStatus.completed}:
+        restore_booking_slots(booking)
+        booking.status = BookingStatus.cancelled
+    booking.refund_requested = False
+    booking.refund_status = "approved"
+    booking.refund_resolved_at = datetime.now(timezone.utc)
+    db.add(Notification(user_id=booking.user_id, title="Hoàn tiền đã được duyệt", message=f"Booking #{booking.id} đã được hoàn tiền và hủy.", link=f"/my-bookings/{booking.id}"))
     db.commit()
     db.refresh(payment)
     return payment
+
+
+@router.patch("/bookings/{booking_id}/reject-refund", response_model=BookingRead)
+def reject_refund(booking_id:int, note:str="Không đủ điều kiện hoàn tiền", db:Session=Depends(get_db), _:User=Depends(require_admin)) -> Booking:
+    booking=db.get(Booking,booking_id)
+    if not booking or booking.refund_status!="pending": raise HTTPException(status_code=400,detail="Refund request is not pending")
+    booking.refund_requested=False; booking.refund_status="rejected"; booking.refund_admin_note=note; booking.refund_resolved_at=datetime.now(timezone.utc)
+    db.add(Notification(user_id=booking.user_id,title="Yêu cầu hoàn tiền bị từ chối",message=f"Booking #{booking.id}: {note}",link=f"/my-bookings/{booking.id}"))
+    db.commit(); db.refresh(booking); return booking
 
 
 @router.get("/reviews", response_model=list[ReviewRead])

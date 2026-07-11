@@ -11,8 +11,8 @@ export function TourListPage() {
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState({
     destination: searchParams.get("destination") || "",
-    max_price: "",
-    duration_days: "",
+    max_price: searchParams.get("max_price") || "",
+    duration_days: searchParams.get("duration_days") || "",
   });
   const [tours, setTours] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +24,7 @@ export function TourListPage() {
   useEffect(() => {
     setLoading(true);
     tourApi.list(params).then((response) => {
-      setTours(response.data.length ? response.data : fallbackTours);
+      setTours(response.data);
     }).catch(() => setTours(fallbackTours)).finally(() => setLoading(false));
   }, [params]);
 

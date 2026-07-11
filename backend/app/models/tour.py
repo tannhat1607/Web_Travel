@@ -36,6 +36,7 @@ class Tour(Base):
     images = relationship("TourImage", back_populates="tour", cascade="all, delete-orphan", order_by="TourImage.sort_order")
     itineraries = relationship("TourItinerary", back_populates="tour", cascade="all, delete-orphan", order_by="TourItinerary.day_number")
     promotions = relationship("Promotion", secondary=promotion_tours, back_populates="tours")
+    departures = relationship("TourDeparture", back_populates="tour", cascade="all, delete-orphan", order_by="TourDeparture.departure_at")
 
     @property
     def active_promotion(self):
@@ -80,3 +81,16 @@ class TourItinerary(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     tour = relationship("Tour", back_populates="itineraries")
+
+
+class TourDeparture(Base):
+    __tablename__ = "tour_departures"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tour_id: Mapped[int] = mapped_column(ForeignKey("tours.id", ondelete="CASCADE"), index=True, nullable=False)
+    departure_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
+    capacity: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+    available_slots: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    tour = relationship("Tour", back_populates="departures")
+    bookings = relationship("Booking", back_populates="departure")

@@ -28,6 +28,7 @@ class Promotion(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     code: Mapped[str | None] = mapped_column(String(50), unique=True, index=True)
     description: Mapped[str | None] = mapped_column(Text)
+    banner_image_url: Mapped[str | None] = mapped_column(String(1000))
     discount_type: Mapped[PromotionDiscountType] = mapped_column(
         Enum(PromotionDiscountType, name="promotion_discount_type"),
         nullable=False,
