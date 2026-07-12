@@ -1,7 +1,8 @@
-import { ImagePlus, Link as LinkIcon, Pencil, Plus, Trash2, UploadCloud, X } from "lucide-react";
+import { ImagePlus, Link as LinkIcon, Pencil, Plus, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { adminApi } from "../../api/adminApi";
+import { formatCurrency } from "../../utils/format";
 
 const initialForm = {
   title: "",
@@ -40,12 +41,23 @@ export function TourManagePage({ mode = "manage" }) {
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [tourStatusFilter, setTourStatusFilter] = useState("");
+  const [tourSearch, setTourSearch] = useState("");
   const [uploading, setUploading] = useState(false);
   const [selectedImageFiles, setSelectedImageFiles] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const selectedTour = useMemo(() => tours.find((tour) => tour.id === editingId), [tours, editingId]);
+  const filteredTours = useMemo(() => {
+    const keyword = tourSearch.trim().toLowerCase();
+    return tours.filter((tour) => {
+      const isAvailable = Number(tour.available_slots || 0) > 0 && tour.is_active;
+      const matchesStatus = !tourStatusFilter || (tourStatusFilter === "available" ? isAvailable : !isAvailable);
+      const matchesSearch = !keyword || `${tour.title} ${tour.destination} ${tour.departure_location}`.toLowerCase().includes(keyword);
+      return matchesStatus && matchesSearch;
+    });
+  }, [tours, tourStatusFilter, tourSearch]);
   const selectedPreviewUrls = useMemo(() => selectedImageFiles.map((file) => ({
     name: file.name,
     url: URL.createObjectURL(file),
@@ -326,7 +338,70 @@ export function TourManagePage({ mode = "manage" }) {
           <div><span className="eyebrow">Quản lý tour</span><h1>Chọn tour để chỉnh sửa</h1></div>
           <p>Chỉnh thông tin, thư viện ảnh và lịch trình của những tour đã có.</p>
         </section>
-        <div className="tour-manager-toolbar">
+        <section className="admin-table-card tour-manager-table">
+          <div className="admin-list-toolbar">
+            <div className="admin-table-filters">
+              <label>Hiển thị:
+                <select value={tourStatusFilter} onChange={(event) => setTourStatusFilter(event.target.value)}>
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="available">Còn chỗ</option>
+                  <option value="sold-out">Hết chỗ</option>
+                </select>
+              </label>
+              <label className="tour-table-search">
+                <Search size={15} />
+                <input value={tourSearch} onChange={(event) => setTourSearch(event.target.value)} placeholder="Tìm theo tên hoặc vị trí..." />
+              </label>
+            </div>
+            <button className="primary-button" type="button" onClick={() => navigate("/admin/tours/new")}><Plus size={16} />Thêm tour mới</button>
+          </div>
+          <div className="admin-table-scroll">
+            <table className="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Hình ảnh</th>
+                  <th>Tên tour & vị trí</th>
+                  <th>Thời gian</th>
+                  <th>Giá tour</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTours.map((tour) => {
+                  const isAvailable = Number(tour.available_slots || 0) > 0 && tour.is_active;
+                  return (
+                    <tr key={tour.id}>
+                      <td>
+                        <span className="tour-table-thumb">{tour.image_url ? <img src={tour.image_url} alt={tour.title} /> : <ImagePlus size={18} />}</span>
+                      </td>
+                      <td>
+                        <button className="tour-table-title" type="button" onClick={() => setSearchParams({ tourId: String(tour.id) })}>
+                          <strong>{tour.title}</strong>
+                          <span>{tour.departure_location || "Việt Nam"} → {tour.destination}</span>
+                        </button>
+                      </td>
+                      <td>{tour.duration_days} ngày {tour.duration_nights || 0} đêm</td>
+                      <td className="money-cell">{formatCurrency(tour.price)}</td>
+                      <td><span className={isAvailable ? "stock-pill available" : "stock-pill soldout"}>{isAvailable ? "Còn chỗ" : "Hết chỗ"}</span></td>
+                      <td>
+                        <div className="table-actions">
+                          <button className="icon-button" type="button" onClick={() => setSearchParams({ tourId: String(tour.id) })} title="Sửa tour"><Pencil size={15} /></button>
+                          <button className="icon-button danger" type="button" onClick={() => remove(tour.id)} title="Xóa tour"><Trash2 size={15} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {!filteredTours.length && <p className="empty-report">Chưa có tour phù hợp.</p>}
+          <div className="admin-table-footer">
+            <span>Hiển thị {filteredTours.length ? 1 : 0}-{filteredTours.length} trong {tours.length} tour</span>
+          </div>
+        </section>
+        <div className="tour-manager-toolbar legacy-tour-manager-toolbar">
           <span>{tours.length} tour trong hệ thống</span>
           <button className="primary-button" type="button" onClick={() => navigate("/admin/tours/new")}><Plus size={16} />Thêm tour mới</button>
         </div>

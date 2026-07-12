@@ -8,6 +8,7 @@ Create Date: 2026-07-06 00:00:00.000000
 from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
 
 
 revision: str = "20260706_0004"
@@ -17,35 +18,37 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TABLE promotions ADD COLUMN IF NOT EXISTS code VARCHAR(50)")
-    op.execute("ALTER TABLE promotions ADD COLUMN IF NOT EXISTS auto_apply BOOLEAN NOT NULL DEFAULT true")
-    op.execute("ALTER TABLE promotions ADD COLUMN IF NOT EXISTS used_count INTEGER NOT NULL DEFAULT 0")
-    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_promotions_code ON promotions (code)")
-    op.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS promotion_id INTEGER")
-    op.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS promotion_code VARCHAR(50)")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_bookings_promotion_id ON bookings (promotion_id)")
-    op.execute(
-        """
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint WHERE conname = 'fk_bookings_promotion_id_promotions'
-            ) THEN
-                ALTER TABLE bookings
-                ADD CONSTRAINT fk_bookings_promotion_id_promotions
-                FOREIGN KEY (promotion_id) REFERENCES promotions(id) ON DELETE SET NULL;
-            END IF;
-        END $$;
-        """
+    op.add_column("promotions", sa.Column("code", sa.String(length=50), nullable=True))
+    op.add_column(
+        "promotions",
+        sa.Column("auto_apply", sa.Boolean(), server_default=sa.text("true"), nullable=False),
+    )
+    op.add_column(
+        "promotions",
+        sa.Column("used_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
+    )
+    op.create_index("ix_promotions_code", "promotions", ["code"], unique=True)
+
+    op.add_column("bookings", sa.Column("promotion_id", sa.Integer(), nullable=True))
+    op.add_column("bookings", sa.Column("promotion_code", sa.String(length=50), nullable=True))
+    op.create_index("ix_bookings_promotion_id", "bookings", ["promotion_id"], unique=False)
+    op.create_foreign_key(
+        "fk_bookings_promotion_id_promotions",
+        "bookings",
+        "promotions",
+        ["promotion_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
 
 
 def downgrade() -> None:
-    op.execute("ALTER TABLE bookings DROP CONSTRAINT IF EXISTS fk_bookings_promotion_id_promotions")
-    op.execute("DROP INDEX IF EXISTS ix_bookings_promotion_id")
-    op.execute("ALTER TABLE bookings DROP COLUMN IF EXISTS promotion_code")
-    op.execute("ALTER TABLE bookings DROP COLUMN IF EXISTS promotion_id")
-    op.execute("DROP INDEX IF EXISTS ix_promotions_code")
-    op.execute("ALTER TABLE promotions DROP COLUMN IF EXISTS used_count")
-    op.execute("ALTER TABLE promotions DROP COLUMN IF EXISTS auto_apply")
-    op.execute("ALTER TABLE promotions DROP COLUMN IF EXISTS code")
+    op.drop_constraint("fk_bookings_promotion_id_promotions", "bookings", type_="foreignkey")
+    op.drop_index("ix_bookings_promotion_id", table_name="bookings")
+    op.drop_column("bookings", "promotion_code")
+    op.drop_column("bookings", "promotion_id")
+
+    op.drop_index("ix_promotions_code", table_name="promotions")
+    op.drop_column("promotions", "used_count")
+    op.drop_column("promotions", "auto_apply")
+    op.drop_column("promotions", "code")

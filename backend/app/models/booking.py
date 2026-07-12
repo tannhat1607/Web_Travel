@@ -29,6 +29,12 @@ class Booking(Base):
     adult_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     child_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    loyalty_tier_key: Mapped[str | None] = mapped_column(String(20))
+    loyalty_tier_label: Mapped[str | None] = mapped_column(String(30))
+    loyalty_discount_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=0)
+    loyalty_discount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    points_earned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    points_awarded_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     note: Mapped[str | None] = mapped_column(Text)
     refund_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     refund_reason: Mapped[str | None] = mapped_column(Text)
@@ -46,6 +52,7 @@ class Booking(Base):
     promotion = relationship("Promotion")
     payment = relationship("Payment", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="booking")
+    loyalty_transactions = relationship("LoyaltyTransaction", back_populates="booking")
 
     @property
     def tour_title(self) -> str | None:

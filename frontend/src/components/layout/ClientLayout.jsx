@@ -1,8 +1,6 @@
 import {
   Bell,
-  CalendarCheck,
   ChevronDown,
-  CreditCard,
   Gift,
   History,
   LogOut,
@@ -15,8 +13,9 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { authApi } from "../../api/authApi";
+import { getStoredUser, logout, saveStoredUser } from "../../store/authStore";
 import { ChatWidget } from "../chat/ChatWidget.jsx";
-import { getStoredUser, logout } from "../../store/authStore";
 
 export function ClientLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -29,6 +28,11 @@ export function ClientLayout() {
     const onAuthChange = () => setUser(getStoredUser());
     window.addEventListener("auth-change", onAuthChange);
     return () => window.removeEventListener("auth-change", onAuthChange);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    authApi.me().then((response) => saveStoredUser(response.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -47,6 +51,15 @@ export function ClientLayout() {
     setAccountOpen(false);
     navigate("/");
   }
+
+  const loyaltyPoints = Number(user?.loyalty_points || 0);
+  const lifetimePoints = Number(user?.lifetime_points || 0);
+  const loyaltyTier = user?.loyalty_tier || { key: "member", label: "Thành viên" };
+  const nextTier = user?.next_loyalty_tier || null;
+  const pointsText = `${loyaltyPoints.toLocaleString("vi-VN")} điểm`;
+  const tierMessage = nextTier
+    ? `Còn ${Number(nextTier.points_needed || 0).toLocaleString("vi-VN")} điểm để lên hạng ${nextTier.label}`
+    : "Bạn đang ở hạng cao nhất";
 
   return (
     <>
@@ -79,20 +92,23 @@ export function ClientLayout() {
                   {user.avatar_url ? <img src={user.avatar_url} alt={user.full_name} /> : <UserRound size={18} />}
                 </span>
                 <span className="account-name">{user.full_name}</span>
-                <span className="account-points"><WalletCards size={15} />0 điểm</span>
+                <span className="account-points"><WalletCards size={15} />{pointsText}</span>
                 <ChevronDown size={16} className={accountOpen ? "open" : ""} />
               </button>
 
               {accountOpen && (
                 <div className="account-dropdown" role="menu">
-                  <div className="account-dropdown-hero">
+                  <div className={`account-dropdown-hero tier-${loyaltyTier.key}`}>
                     <strong>{user.full_name}</strong>
-                    <span>Bạn là thành viên Bronze Priority</span>
+                    <span>Hạng {loyaltyTier.label}</span>
+                    <small>{tierMessage}</small>
                   </div>
                   <div className="account-dropdown-body">
-                    <div className="account-score">
+                    <div className={`account-score tier-${loyaltyTier.key}`}>
                       <WalletCards size={21} />
-                      <strong>0 điểm</strong>
+                      <strong>{pointsText}</strong>
+                      <small>{loyaltyTier.label}</small>
+                      <em>Tổng tích lũy {lifetimePoints.toLocaleString("vi-VN")} điểm</em>
                     </div>
                     <Link to="/profile" onClick={() => setAccountOpen(false)}>
                       <UserCog size={20} />Chỉnh sửa hồ sơ

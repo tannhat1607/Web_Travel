@@ -1,19 +1,35 @@
 import { ArrowRight, MapPinned } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { contentApi } from "../../api/contentApi";
 import { tourApi } from "../../api/tourApi";
 import { fallbackTours } from "../../data/fallbackTours";
 
 export function DestinationsPage() {
   const [tours, setTours] = useState(fallbackTours);
+  const [cmsDestinations, setCmsDestinations] = useState([]);
 
   useEffect(() => {
     tourApi.list({ limit: 100 }).then((response) => {
       if (response.data.length) setTours(response.data);
     }).catch(() => {});
+    contentApi.list({ content_type: "destination", limit: 50 }).then((response) => {
+      setCmsDestinations(response.data);
+    }).catch(() => {});
   }, []);
 
   const destinations = useMemo(() => {
+    if (cmsDestinations.length) {
+      return cmsDestinations.map((item) => ({
+        name: item.title,
+        count: null,
+        minPrice: null,
+        image: item.image_url,
+        description: item.excerpt || item.content,
+        slug: item.slug,
+      }));
+    }
+
     const map = new Map();
     tours.forEach((tour) => {
       const name = tour.destination || "Việt Nam";
@@ -30,7 +46,7 @@ export function DestinationsPage() {
       map.set(name, current);
     });
     return Array.from(map.values());
-  }, [tours]);
+  }, [cmsDestinations, tours]);
 
   return (
     <div className="page content-page">
@@ -43,12 +59,12 @@ export function DestinationsPage() {
         {destinations.map((destination) => (
           <Link
             className="destination-card"
-            key={destination.name}
+            key={destination.slug || destination.name}
             to={`/tours?destination=${encodeURIComponent(destination.name)}`}
           >
             <img src={destination.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80"} alt={destination.name} />
             <div>
-              <span>{destination.count} tour</span>
+              <span>{destination.count === null ? "Khám phá" : `${destination.count} tour`}</span>
               <h2>{destination.name}</h2>
               <p>{destination.description || "Các lịch trình nổi bật đang được cập nhật."}</p>
               <strong>Xem tour <ArrowRight size={17} /></strong>

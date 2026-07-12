@@ -2,7 +2,7 @@
 .auth-modal-page {
   position: relative;
   min-height: calc(100dvh - 78px);
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
   padding: clamp(28px, 5vw, 64px) 16px;
   background:
@@ -70,8 +70,8 @@
   position: relative;
   z-index: 1;
   width: min(520px, calc(100vw - 32px));
-  max-height: calc(100dvh - 124px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   padding: 28px;
   border: 1px solid rgba(255, 255, 255, 0.76);
   border-radius: 28px;
@@ -83,6 +83,9 @@
     0 0 0 1px rgba(13, 110, 253, 0.06);
   backdrop-filter: blur(24px) saturate(180%);
 }
+
+/* Auth forms grow naturally. If a form is taller than the viewport, the page
+   scrolls as one surface instead of creating a scrollbar inside the card. */
 
 .register-modal-card {
   width: min(560px, calc(100vw - 32px));
@@ -213,6 +216,40 @@
   font-size: 16px;
 }
 
+.auth-forgot-link,
+.auth-back-link {
+  color: #075ccf;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.auth-forgot-link {
+  display: block;
+  width: fit-content;
+  margin-top: -0.15rem;
+}
+
+.auth-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+}
+
+.auth-forgot-link:hover,
+.auth-back-link:hover {
+  color: #003f98;
+  transform: translateX(2px);
+}
+
+.auth-forgot-link:focus-visible,
+.auth-back-link:focus-visible {
+  outline: 3px solid rgba(7, 92, 207, 0.22);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 .auth-trust {
   display: flex;
   align-items: center;
@@ -258,7 +295,8 @@
   .auth-modal-card,
   .register-modal-card {
     width: min(100%, calc(100vw - 24px));
-    max-height: calc(100dvh - 112px);
+    max-height: none;
+    overflow: visible;
     padding: 20px;
     border-radius: 24px;
   }
@@ -271,5 +309,27 @@
 
   .auth-heading h1 {
     font-size: 30px;
+  }
+}
+
+@media (max-height: 760px) {
+  .auth-modal-page {
+    min-height: calc(100dvh - 72px);
+    overflow: visible;
+    padding-block: 16px 24px;
+  }
+
+  .auth-modal-card {
+    padding: 18px;
+  }
+
+  .auth-modal-card .auth-visual-banner {
+    min-height: 78px;
+    margin-bottom: 14px;
+    padding: 16px;
+  }
+
+  .auth-modal-card .auth-heading h1 {
+    font-size: clamp(28px, 5vh, 38px);
   }
 }

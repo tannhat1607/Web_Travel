@@ -223,6 +223,13 @@
   background: #eef5ff;
 }
 
+.guide-cover {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 18px;
+}
+
 .guide-list span {
   color: var(--accent-dark);
   font-weight: 850;

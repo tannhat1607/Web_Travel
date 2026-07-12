@@ -2,8 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
+from app.core.rate_limit import RateLimitMiddleware
 
 app = FastAPI(title="Travel Booking API")
+app.add_middleware(RateLimitMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

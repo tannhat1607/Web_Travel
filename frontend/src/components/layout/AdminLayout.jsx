@@ -1,4 +1,4 @@
-import { BadgePercent, BarChart3, BookOpenText, CalendarCheck, Inbox, LogOut, Map, MessageSquareText, PanelLeftClose, PanelLeftOpen, Plane, Plus, Star, Users } from "lucide-react";
+import { BadgePercent, BarChart3, Bell, BookOpenText, CalendarCheck, CircleHelp, Inbox, LogOut, Map, MessageSquareText, PanelLeftClose, PanelLeftOpen, Plane, Plus, Star, Users } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { getStoredUser, logout } from "../../store/authStore";
@@ -37,11 +37,20 @@ export function AdminLayout() {
   return (
     <div className={sidebarCollapsed ? "admin-shell sidebar-collapsed" : "admin-shell"}>
       <aside className="admin-sidebar">
-        <button className="admin-sidebar-toggle" type="button" onClick={toggleSidebar} aria-label={sidebarCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"} title={sidebarCollapsed ? "Mở rộng" : "Thu gọn"}>
+        <button
+          className="admin-sidebar-toggle"
+          type="button"
+          onClick={toggleSidebar}
+          aria-label={sidebarCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
+          title={sidebarCollapsed ? "Mở rộng" : "Thu gọn"}
+        >
           {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
         </button>
         <div className="admin-sidebar-top">
-          <div className="brand admin-brand"><span className="admin-brand-mark"><Plane size={18} /></span><span>Travelora<small>Operations</small></span></div>
+          <div className="brand admin-brand">
+            <span className="admin-brand-mark"><Plane size={18} /></span>
+            <span>Travelora<small>Operations</small></span>
+          </div>
           {user && <div className="admin-operator"><span>{user.full_name?.slice(0, 1)?.toUpperCase()}</span><small>{user.full_name}</small></div>}
         </div>
         <nav>
@@ -62,8 +71,11 @@ export function AdminLayout() {
       </aside>
       <main className="admin-main">
         <header className="admin-topbar">
-          <span>Hệ thống vận hành</span>
-          <a href="/" target="_blank" rel="noreferrer">Xem website ↗</a>
+          <div className="admin-topbar-actions">
+            <button type="button" aria-label="Thông báo"><Bell size={17} /><i /></button>
+            <button type="button" aria-label="Trợ giúp"><CircleHelp size={17} /></button>
+            <a href="/" target="_blank" rel="noreferrer">Xem website ↗</a>
+          </div>
         </header>
         <Outlet />
       </main>

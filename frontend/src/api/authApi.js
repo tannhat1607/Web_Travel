@@ -6,8 +6,8 @@ export const authApi = {
   forgotPassword: (payload) => axiosClient.post("/auth/forgot-password", payload),
   resetPassword: (payload) => axiosClient.post("/auth/reset-password", payload),
   me: () => axiosClient.get("/auth/me"),
+  loyalty: () => axiosClient.get("/auth/me/loyalty"),
   updateProfile: (payload) => axiosClient.patch("/auth/me", payload),
   changePassword: (payload) => axiosClient.patch("/auth/me/password", payload),
-  updateAvatar: (payload) => axiosClient.patch("/auth/me/avatar", payload),
   uploadAvatar: (formData) => axiosClient.post("/auth/me/avatar-upload", formData, { headers: { "Content-Type": "multipart/form-data" } }),
 };

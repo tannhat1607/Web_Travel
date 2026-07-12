@@ -1,12 +1,41 @@
 """notifications and refund status"""
+
 from typing import Sequence, Union
+
 from alembic import op
-revision="20260711_0008"; down_revision="20260711_0007"; branch_labels=None; depends_on=None
-def upgrade():
-    op.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_status VARCHAR(20)")
-    op.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_admin_note TEXT")
-    op.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_resolved_at TIMESTAMPTZ")
-    op.execute("""CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,title VARCHAR(200) NOT NULL,message TEXT NOT NULL,link VARCHAR(500),is_read BOOLEAN NOT NULL DEFAULT false,created_at TIMESTAMPTZ NOT NULL DEFAULT now())""")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications(user_id)")
-def downgrade():
-    op.execute("DROP TABLE IF EXISTS notifications"); op.execute("ALTER TABLE bookings DROP COLUMN IF EXISTS refund_resolved_at"); op.execute("ALTER TABLE bookings DROP COLUMN IF EXISTS refund_admin_note"); op.execute("ALTER TABLE bookings DROP COLUMN IF EXISTS refund_status")
+import sqlalchemy as sa
+
+
+revision: str = "20260711_0008"
+down_revision: Union[str, None] = "20260711_0007"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.add_column("bookings", sa.Column("refund_status", sa.String(length=20), nullable=True))
+    op.add_column("bookings", sa.Column("refund_admin_note", sa.Text(), nullable=True))
+    op.add_column("bookings", sa.Column("refund_resolved_at", sa.DateTime(timezone=True), nullable=True))
+
+    op.create_table(
+        "notifications",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("title", sa.String(length=200), nullable=False),
+        sa.Column("message", sa.Text(), nullable=False),
+        sa.Column("link", sa.String(length=500), nullable=True),
+        sa.Column("is_read", sa.Boolean(), server_default=sa.text("false"), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_notifications_user_id", "notifications", ["user_id"], unique=False)
+
+
+def downgrade() -> None:
+    op.drop_index("ix_notifications_user_id", table_name="notifications")
+    op.drop_table("notifications")
+
+    op.drop_column("bookings", "refund_resolved_at")
+    op.drop_column("bookings", "refund_admin_note")
+    op.drop_column("bookings", "refund_status")

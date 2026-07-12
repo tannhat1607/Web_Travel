@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.models.user import UserRole
+from app.services.loyalty_service import get_loyalty_tier, get_next_loyalty_tier
 
 
 class UserBase(BaseModel):
@@ -69,8 +70,20 @@ class UserRead(UserBase):
     id: int
     role: UserRole
     is_active: bool
+    loyalty_points: int = 0
+    lifetime_points: int = 0
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def loyalty_tier(self) -> dict:
+        return get_loyalty_tier(self.lifetime_points)
+
+    @computed_field
+    @property
+    def next_loyalty_tier(self) -> dict | None:
+        return get_next_loyalty_tier(self.lifetime_points)
 
 
 class LoginRequest(BaseModel):

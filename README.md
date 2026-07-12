@@ -73,6 +73,8 @@ CHROMA_API_KEY=your_chroma_api_key
 CHROMA_TENANT=your_chroma_tenant
 CHROMA_DATABASE=your_chroma_database
 RAG_TOP_K=4
+RAG_MAX_DISTANCE=0.9
+RAG_LEXICAL_MIN_SCORE=0.15
 
 GOOGLE_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-2.5-flash-lite

@@ -1,37 +1,69 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bot, MessageCircle, Send, X } from "lucide-react";
 import { chatApi } from "../../api/chatApi";
 
+const STORAGE_KEY = "travelora_chat";
+const WELCOME_MESSAGE = {
+  role: "bot",
+  text: "Mình là trợ lý du lịch. Bạn có thể hỏi về tour, lịch trình, giá hoặc điểm đến.",
+};
+
+function readStoredChat() {
+  try {
+    const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    return value && typeof value === "object" ? value : {};
+  } catch {
+    return {};
+  }
+}
+
 export function ChatWidget() {
+  const storedChat = readStoredChat();
   const [open, setOpen] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
+  const [sessionId, setSessionId] = useState(storedChat.sessionId || null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState([
-    { role: "bot", text: "Mình là trợ lý du lịch. Bạn có thể hỏi về tour, lịch trình, giá hoặc món ăn." },
-  ]);
+  const [items, setItems] = useState(
+    Array.isArray(storedChat.items) && storedChat.items.length
+      ? storedChat.items
+      : [WELCOME_MESSAGE],
+  );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ sessionId, items: items.slice(-50) }),
+      );
+    } catch {
+      // Chat remains usable when localStorage is disabled or full.
+    }
+  }, [sessionId, items]);
 
   async function sendMessage(event) {
     event.preventDefault();
     const text = message.trim();
     if (!text || loading) return;
     setMessage("");
-    setItems((prev) => [...prev, { role: "user", text }]);
+    setItems((previous) => [...previous, { role: "user", text }]);
 
     setLoading(true);
     try {
       const response = await chatApi.send({ message: text, session_id: sessionId });
       setSessionId(response.data.session_id);
-      setItems((prev) => [
-        ...prev,
+      setItems((previous) => [
+        ...previous,
         {
           role: "bot",
           text: response.data.answer,
           sources: response.data.sources || [],
         },
       ]);
-    } catch (error) {
-      setItems((prev) => [...prev, { role: "bot", text: "Chatbot đang gặp lỗi kết nối. Vui lòng thử lại sau." }]);
+    } catch {
+      setItems((previous) => [
+        ...previous,
+        { role: "bot", text: "Chatbot đang gặp lỗi kết nối. Vui lòng thử lại sau." },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -44,7 +76,7 @@ export function ChatWidget() {
           <header>
             <div className="chat-title">
               <span className="bot-avatar"><Bot size={18} /></span>
-              <span><strong>VoyagePro Assistant</strong><small>AI Guide - Online</small></span>
+              <span><strong>Travelora Assistant</strong><small>Trợ lý AI · Trực tuyến</small></span>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Đóng chatbot"><X size={18} /></button>
           </header>

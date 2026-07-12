@@ -4,6 +4,7 @@ from app.models.chat import ChatMessage, ChatSession
 from app.models.contact import Contact
 from app.models.content import ContentItem
 from app.models.knowledge import KnowledgeDocument
+from app.models.loyalty import LoyaltyTransaction
 from app.models.notification import Notification
 from app.models.payment import Payment
 from app.models.promotion import Promotion
@@ -19,6 +20,7 @@ __all__ = [
     "Contact",
     "ContentItem",
     "KnowledgeDocument",
+    "LoyaltyTransaction",
     "Notification",
     "Payment",
     "Promotion",

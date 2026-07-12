@@ -5,7 +5,6 @@ export const bookingApi = {
   create: (payload) => axiosClient.post("/bookings", payload),
   mine: () => axiosClient.get("/bookings/me"),
   detail: (id) => axiosClient.get(`/bookings/${id}`),
-  invoice: (id) => axiosClient.get(`/bookings/${id}/invoice.pdf`, { responseType: "blob" }),
   cancel: (id) => axiosClient.patch(`/bookings/${id}/cancel`),
   simulatePayment: (id, payload) => axiosClient.post(`/bookings/${id}/simulate-payment`, payload),
   requestRefund: (id, payload) => axiosClient.post(`/bookings/${id}/refund-request`, payload),

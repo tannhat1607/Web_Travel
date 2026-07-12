@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func
@@ -37,16 +37,13 @@ from app.schemas.tour import (
 from app.schemas.upload import ImageUploadRead
 from app.schemas.user import UserRead, UserUpdate
 from app.services.promotion_service import normalize_promotion_code
+from app.services.booking_service import restore_booking_slots
+from app.services.loyalty_service import award_booking_points
 from app.services.storage_service import upload_image_to_supabase
 from app.services.rag_service import ingest_knowledge_documents
 from app.services.tour_knowledge_service import delete_tour_knowledge, sync_tour_knowledge
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-
-def restore_booking_slots(booking: Booking) -> None:
-    target = booking.departure or booking.tour
-    target.available_slots += booking.adult_count + booking.child_count
 
 
 def sync_promotion_tour_knowledge(db: Session, tours: list[Tour]) -> None:
@@ -94,8 +91,48 @@ def dashboard_stats(db: Session = Depends(get_db), _: User = Depends(require_adm
         .filter(Payment.status == PaymentStatus.paid)
         .scalar()
     )
-    revenue_rows = db.query(func.date(Payment.paid_at), func.coalesce(func.sum(Payment.amount), 0)).filter(Payment.status == PaymentStatus.paid, Payment.paid_at.isnot(None)).group_by(func.date(Payment.paid_at)).order_by(func.date(Payment.paid_at).desc()).limit(7).all()
-    top_rows = db.query(Tour.title, func.count(Booking.id)).join(Booking, Booking.tour_id == Tour.id).group_by(Tour.id, Tour.title).order_by(func.count(Booking.id).desc()).limit(5).all()
+    today = date.today()
+    start_day = today - timedelta(days=6)
+    revenue_rows = (
+        db.query(func.date(Payment.paid_at), func.coalesce(func.sum(Payment.amount), 0))
+        .filter(
+            Payment.status == PaymentStatus.paid,
+            Payment.paid_at.isnot(None),
+            func.date(Payment.paid_at) >= start_day,
+        )
+        .group_by(func.date(Payment.paid_at))
+        .all()
+    )
+    def normalize_day(value):
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        return datetime.fromisoformat(str(value)).date()
+
+    revenue_by_date = {normalize_day(row_day): value for row_day, value in revenue_rows}
+    status_labels = {
+        BookingStatus.pending: "Chờ xử lý",
+        BookingStatus.confirmed: "Đã xác nhận",
+        BookingStatus.completed: "Hoàn thành",
+        BookingStatus.cancelled: "Đã hủy",
+    }
+    status_rows = (
+        db.query(Booking.status, func.count(Booking.id))
+        .group_by(Booking.status)
+        .all()
+    )
+    status_counts = {status_value: count for status_value, count in status_rows}
+    top_rows = (
+        db.query(Tour.title, func.count(Booking.id))
+        .join(Booking, Booking.tour_id == Tour.id)
+        .join(Payment, Payment.booking_id == Booking.id)
+        .filter(Payment.status == PaymentStatus.paid)
+        .group_by(Tour.id, Tour.title)
+        .order_by(func.count(Booking.id).desc())
+        .limit(5)
+        .all()
+    )
     return DashboardStats(
         total_users=total_users,
         total_tours=total_tours,
@@ -106,7 +143,14 @@ def dashboard_stats(db: Session = Depends(get_db), _: User = Depends(require_adm
         paid_payments=paid_payments,
         refunded_payments=refunded_payments,
         total_revenue=total_revenue,
-        revenue_by_day=[{"label": day.strftime("%d/%m"), "value": value} for day, value in reversed(revenue_rows)],
+        revenue_by_day=[
+            {"label": (start_day + timedelta(days=offset)).strftime("%d/%m"), "value": revenue_by_date.get(start_day + timedelta(days=offset), 0)}
+            for offset in range(7)
+        ],
+        booking_statuses=[
+            {"status": status_value.value, "label": label, "value": status_counts.get(status_value, 0)}
+            for status_value, label in status_labels.items()
+        ],
         top_tours=[{"label": title, "value": count} for title, count in top_rows],
     )
 
@@ -495,6 +539,9 @@ def complete_booking(
     if not booking.payment or booking.payment.status != PaymentStatus.paid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking must be paid before completion")
     booking.status = BookingStatus.completed
+    earned_points = award_booking_points(db, booking)
+    if earned_points > 0:
+        db.add(Notification(user_id=booking.user_id, title="Đã cộng điểm thành viên", message=f"Booking #{booking.id} hoàn thành. Bạn nhận được {earned_points} điểm Travelora.", link="/profile"))
     db.commit()
     db.refresh(booking)
     return booking

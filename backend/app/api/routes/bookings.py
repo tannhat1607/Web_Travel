@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -13,15 +12,11 @@ from app.models.tour import Tour, TourDeparture
 from app.models.user import User
 from app.schemas.booking import BookingCreate, BookingQuoteCreate, BookingQuoteRead, BookingRead, RefundRequestCreate
 from app.schemas.payment import PaymentRead, PaymentSimulationCreate
+from app.services.loyalty_service import calculate_loyalty_discount
+from app.services.booking_service import restore_booking_slots
 from app.services.promotion_service import get_code_promotion, normalize_promotion_code, quote_booking_total
-from app.services.invoice_service import booking_invoice_pdf
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
-
-
-def restore_booking_slots(booking: Booking) -> None:
-    target = booking.departure or booking.tour
-    target.available_slots += booking.adult_count + booking.child_count
 
 
 def get_bookable_tour(db: Session, tour_id: int) -> Tour:
@@ -42,7 +37,7 @@ def validate_passenger_count(adult_count: int, child_count: int) -> int:
 def quote_booking(
     payload: BookingQuoteCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> BookingQuoteRead:
     tour = get_bookable_tour(db, payload.tour_id)
     validate_passenger_count(payload.adult_count, payload.child_count)
@@ -53,8 +48,15 @@ def quote_booking(
         if code_promotion is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Promotion code is not valid")
     quote = quote_booking_total(tour, payload.adult_count, payload.child_count, code_promotion)
+    loyalty = calculate_loyalty_discount(quote["total"], current_user.lifetime_points)
+    total = max(quote["total"] - loyalty["discount"], 0)
+    quote["total"] = total
     return BookingQuoteRead(
         **quote,
+        loyalty_tier_key=loyalty["tier_key"],
+        loyalty_tier_label=loyalty["tier_label"],
+        loyalty_discount_rate=loyalty["discount_rate"],
+        loyalty_discount=loyalty["discount"],
         promotion_id=code_promotion.id if code_promotion else None,
         promotion_code=code_promotion.code if code_promotion else None,
         promotion_title=code_promotion.title if code_promotion else None,
@@ -83,6 +85,8 @@ def create_booking(
         if code_promotion is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Promotion code is not valid")
     quote = quote_booking_total(tour, payload.adult_count, payload.child_count, code_promotion)
+    loyalty = calculate_loyalty_discount(quote["total"], current_user.lifetime_points)
+    total = max(quote["total"] - loyalty["discount"], 0)
     booking = Booking(
         user_id=current_user.id,
         tour_id=tour.id,
@@ -94,7 +98,11 @@ def create_booking(
         customer_phone=payload.customer_phone,
         adult_count=payload.adult_count,
         child_count=payload.child_count,
-        total_price=quote["total"],
+        total_price=total,
+        loyalty_tier_key=loyalty["tier_key"],
+        loyalty_tier_label=loyalty["tier_label"],
+        loyalty_discount_rate=loyalty["discount_rate"],
+        loyalty_discount=loyalty["discount"],
         note=payload.note,
         status=BookingStatus.pending,
     )
@@ -188,15 +196,6 @@ def get_my_booking(
     if not booking or booking.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
     return booking
-
-
-@router.get("/{booking_id}/invoice.pdf")
-def download_invoice(booking_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
-    booking = db.get(Booking, booking_id)
-    if not booking or booking.user_id != current_user.id: raise HTTPException(status_code=404, detail="Booking not found")
-    return Response(booking_invoice_pdf(booking), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="travelora-invoice-{booking.id}.pdf"'})
-
-
 @router.patch("/{booking_id}/cancel", response_model=BookingRead)
 def cancel_my_booking(
     booking_id: int,

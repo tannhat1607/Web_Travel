@@ -113,6 +113,37 @@
   font-weight: 800;
 }
 
+.account-dropdown-hero small {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.account-dropdown-hero.tier-member {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.20), transparent 20%),
+    linear-gradient(135deg, #5b78a7 0%, #86a9d8 100%);
+}
+
+.account-dropdown-hero.tier-bronze {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.22), transparent 20%),
+    linear-gradient(135deg, #a7653d 0%, #d29a68 100%);
+}
+
+.account-dropdown-hero.tier-silver {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.28), transparent 20%),
+    linear-gradient(135deg, #667085 0%, #a4afbd 100%);
+}
+
+.account-dropdown-hero.tier-gold {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.30), transparent 20%),
+    linear-gradient(135deg, #ad7b00 0%, #e3b64b 100%);
+}
+
 .account-dropdown-body {
   display: grid;
   gap: 2px;
@@ -169,6 +200,35 @@
 
 .account-score strong {
   font-weight: 850;
+}
+
+.account-score em {
+  grid-column: 2 / -1;
+  margin-top: -4px;
+  color: #667085;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.account-score.tier-member small {
+  color: #315f99;
+  background: #eaf3ff;
+}
+
+.account-score.tier-bronze small {
+  color: #9a4f16;
+  background: #fff0df;
+}
+
+.account-score.tier-silver small {
+  color: #475467;
+  background: #eef2f6;
+}
+
+.account-score.tier-gold small {
+  color: #9a6700;
+  background: #fff6c7;
 }
 
 .account-logout {

@@ -1,5 +1,7 @@
 import { Award, Headphones, MapPinned, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { contentApi } from "../../api/contentApi";
 
 const values = [
   { icon: ShieldCheck, title: "Minh bạch", text: "Thông tin tour, lịch trình và chi phí được trình bày rõ trước khi đặt." },
@@ -8,15 +10,23 @@ const values = [
 ];
 
 export function AboutPage() {
+  const [aboutContent, setAboutContent] = useState(null);
+
+  useEffect(() => {
+    contentApi.list({ content_type: "page", q: "about", limit: 10 }).then((response) => {
+      const item = response.data.find((entry) => entry.slug === "about") || response.data[0];
+      if (item) setAboutContent(item);
+    }).catch(() => {});
+  }, []);
+
   return (
     <div className="page content-page">
-      <section className="content-hero about-hero">
+      <section className="content-hero about-hero" style={aboutContent?.image_url ? { backgroundImage: `linear-gradient(90deg, rgba(255,255,255,.96) 0%, rgba(255,255,255,.68) 58%, rgba(255,255,255,.14) 100%), url("${aboutContent.image_url}")` } : undefined}>
         <div>
           <span className="eyebrow"><Sparkles size={16} />Về Travelora</span>
-          <h1>Chúng tôi xây dựng trải nghiệm đặt tour gọn, rõ và dễ tin cậy.</h1>
+          <h1>{aboutContent?.title || "Chúng tôi xây dựng trải nghiệm đặt tour gọn, rõ và dễ tin cậy."}</h1>
           <p>
-            Travelora là nền tảng đặt tour du lịch kết hợp trợ lý chatbot RAG, giúp khách xem tour,
-            hỏi thông tin, đặt chỗ và quản lý chuyến đi trên cùng một hệ thống.
+            {aboutContent?.excerpt || "Travelora là nền tảng đặt tour du lịch kết hợp trợ lý chatbot RAG, giúp khách xem tour, hỏi thông tin, đặt chỗ và quản lý chuyến đi trên cùng một hệ thống."}
           </p>
           <Link className="primary-button" to="/tours">Khám phá tour</Link>
         </div>
@@ -50,19 +60,17 @@ export function AboutPage() {
       <section className="story-band">
         <div>
           <Award size={28} />
-          <h2>Mục tiêu dự án</h2>
+          <h2>{aboutContent ? "Nội dung giới thiệu" : "Mục tiêu dự án"}</h2>
         </div>
         <p>
-          Dự án ưu tiên hoàn thiện backend API, quản trị tour, booking, đánh giá, liên hệ và RAG chatbot.
-          Frontend React được xây dựng để trình bày đầy đủ các luồng chính cho người dùng và admin.
+          {aboutContent?.content || "Dự án ưu tiên hoàn thiện backend API, quản trị tour, booking, đánh giá, liên hệ và RAG chatbot. Frontend React được xây dựng để trình bày đầy đủ các luồng chính cho người dùng và admin."}
         </p>
         <div>
           <Users size={28} />
           <h2>Đối tượng sử dụng</h2>
         </div>
         <p>
-          Khách du lịch cần tìm tour nhanh, admin cần quản lý dữ liệu tour, và hệ thống chatbot cần truy xuất
-          kiến thức đã upload để trả lời chính xác hơn.
+          Khách du lịch cần tìm tour nhanh, admin cần quản lý dữ liệu tour, và hệ thống chatbot cần truy xuất kiến thức đã upload để trả lời chính xác hơn.
         </p>
       </section>
     </div>

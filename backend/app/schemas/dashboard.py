@@ -1,10 +1,15 @@
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class ReportPoint(BaseModel):
     label: str
     value: Decimal
+
+class StatusPoint(BaseModel):
+    status: str
+    label: str
+    value: int
 
 class TopTourPoint(BaseModel):
     label: str
@@ -21,5 +26,6 @@ class DashboardStats(BaseModel):
     paid_payments: int
     refunded_payments: int
     total_revenue: Decimal
-    revenue_by_day: list[ReportPoint] = []
-    top_tours: list[TopTourPoint] = []
+    revenue_by_day: list[ReportPoint] = Field(default_factory=list)
+    booking_statuses: list[StatusPoint] = Field(default_factory=list)
+    top_tours: list[TopTourPoint] = Field(default_factory=list)

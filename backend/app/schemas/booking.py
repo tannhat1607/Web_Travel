@@ -32,6 +32,10 @@ class BookingQuoteRead(BaseModel):
     subtotal_after_auto: Decimal
     auto_discount: Decimal
     code_discount: Decimal
+    loyalty_tier_key: str | None = None
+    loyalty_tier_label: str | None = None
+    loyalty_discount_rate: Decimal = Decimal("0")
+    loyalty_discount: Decimal = Decimal("0")
     total: Decimal
     promotion_id: int | None = None
     promotion_code: str | None = None
@@ -62,6 +66,12 @@ class BookingRead(BaseModel):
     adult_count: int
     child_count: int
     total_price: Decimal
+    loyalty_tier_key: str | None = None
+    loyalty_tier_label: str | None = None
+    loyalty_discount_rate: Decimal = Decimal("0")
+    loyalty_discount: Decimal = Decimal("0")
+    points_earned: int = 0
+    points_awarded_at: datetime | None = None
     promotion_id: int | None = None
     promotion_code: str | None = None
     note: str | None

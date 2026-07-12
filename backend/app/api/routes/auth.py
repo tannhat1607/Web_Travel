@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from urllib.parse import quote
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.security import create_access_token, create_password_reset_token, decode_password_reset_token, get_password_hash, verify_password
 from app.db.database import get_db
 from app.models.user import User
+from app.models.loyalty import LoyaltyTransaction
+from app.schemas.loyalty import LoyaltyTransactionRead
 from app.schemas.user import (
     LoginRequest,
     ForgotPasswordRequest,
@@ -17,6 +21,8 @@ from app.schemas.user import (
     UserRead,
 )
 from app.services.storage_service import upload_image_to_supabase
+from app.services.email_service import password_reset_email_is_configured, send_password_reset_email
+from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -52,13 +58,17 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> Token:
 
 
 @router.post("/forgot-password")
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)) -> dict:
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict:
     user = db.query(User).filter(User.email == payload.email).first()
-    return {
-        "message": "Demo reset token generated" if user else "If the account exists, a reset token is available",
-        "reset_token": create_password_reset_token(str(user.id)) if user else None,
-        "demo": True,
-    }
+    if user and password_reset_email_is_configured():
+        token = create_password_reset_token(str(user.id))
+        reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/forgot-password?reset_token={quote(token)}"
+        background_tasks.add_task(send_password_reset_email, user.email, reset_url)
+    return {"message": "Nếu email tồn tại, liên kết đặt lại mật khẩu sẽ được gửi đến hộp thư."}
 
 
 @router.post("/reset-password")
@@ -75,6 +85,20 @@ def reset_password(payload: PasswordResetRequest, db: Session = Depends(get_db))
 @router.get("/me", response_model=UserRead)
 def read_me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+@router.get("/me/loyalty", response_model=list[LoyaltyTransactionRead])
+def read_my_loyalty_transactions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[LoyaltyTransaction]:
+    return (
+        db.query(LoyaltyTransaction)
+        .filter(LoyaltyTransaction.user_id == current_user.id)
+        .order_by(LoyaltyTransaction.created_at.desc())
+        .limit(50)
+        .all()
+    )
 
 
 @router.patch("/me", response_model=UserRead)

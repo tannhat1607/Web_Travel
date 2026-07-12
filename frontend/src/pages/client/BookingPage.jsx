@@ -48,6 +48,7 @@ export function BookingPage() {
   const hasPromotion = tour?.active_promotion && unitPrice < Number(tour.price);
   const fallbackTotal = unitPrice * Number(form.adult_count || 0) + unitPrice * Number(form.child_count || 0) * 0.7;
   const total = quote ? Number(quote.total) : fallbackTotal;
+  const expectedPoints = Math.floor(total / 1000);
   const adultSubtotal = unitPrice * Number(form.adult_count || 0);
   const childUnitPrice = unitPrice * 0.7;
   const childSubtotal = childUnitPrice * Number(form.child_count || 0);
@@ -203,6 +204,8 @@ export function BookingPage() {
             <div><span>Tạm tính</span><strong>{formatCurrency(adultSubtotal + childSubtotal)}</strong></div>
             {quote?.auto_discount > 0 && <div className="discount"><span>Ưu đãi tự động</span><strong>-{formatCurrency(quote.auto_discount)}</strong></div>}
             {quote?.code_discount > 0 && <div className="discount"><span>Mã {quote.promotion_code}</span><strong>-{formatCurrency(quote.code_discount)}</strong></div>}
+            {quote?.loyalty_discount > 0 && <div className="discount"><span>Ưu đãi hạng {quote.loyalty_tier_label} ({Number(quote.loyalty_discount_rate)}%)</span><strong>-{formatCurrency(quote.loyalty_discount)}</strong></div>}
+            <div><span>Điểm dự kiến sau chuyến đi</span><strong>+{expectedPoints.toLocaleString("vi-VN")} điểm</strong></div>
             <div className="grand-total"><span>Tổng thanh toán</span><strong>{formatCurrency(total)}</strong></div>
           </div>
           {form.note && <div className="invoice-note"><small>Ghi chú</small><p>{form.note}</p></div>}
@@ -241,6 +244,7 @@ export function BookingPage() {
             <div><span>Mã giao dịch</span><strong>{transaction?.payment?.transaction_code || "—"}</strong></div>
             <div><span>Phương thức</span><strong>{({ momo:"MoMo giả lập", bank_transfer:"Chuyển khoản giả lập", paypal:"PayPal giả lập", cash:"Tiền mặt tại quầy" })[form.payment_method]}</strong></div>
             <div><span>Tổng thanh toán</span><strong>{formatCurrency(total)}</strong></div>
+            <div><span>Điểm sau khi hoàn thành chuyến</span><strong>+{expectedPoints.toLocaleString("vi-VN")}</strong></div>
             <div><span>Trạng thái</span><strong>{transaction?.status === "paid" ? "Đã thanh toán" : "Thất bại"}</strong></div>
           </div>
 

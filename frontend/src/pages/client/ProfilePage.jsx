@@ -10,6 +10,7 @@ import {
   ReceiptText,
   Save,
   Settings,
+  Trophy,
   UserRound,
   WalletCards,
   X,
@@ -30,6 +31,8 @@ const passwordRules = [
 export function ProfilePage() {
   const [activeTab, setActiveTab] = useState("account");
   const [form, setForm] = useState({ full_name: "", email: "", phone: "", avatar_url: "" });
+  const [loyalty, setLoyalty] = useState({ points: 0, lifetime: 0, tier: { label: "Thành viên", key: "member" }, next: null });
+  const [loyaltyHistory, setLoyaltyHistory] = useState([]);
   const [passwordForm, setPasswordForm] = useState({ current_password: "", new_password: "", confirm_password: "" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -45,6 +48,12 @@ export function ProfilePage() {
 
   useEffect(() => {
     authApi.me().then((response) => {
+      setLoyalty({
+        points: response.data.loyalty_points || 0,
+        lifetime: response.data.lifetime_points || 0,
+        tier: response.data.loyalty_tier || { label: "Thành viên", key: "member" },
+        next: response.data.next_loyalty_tier || null,
+      });
       setForm({
         full_name: response.data.full_name || "",
         email: response.data.email || "",
@@ -52,6 +61,7 @@ export function ProfilePage() {
         avatar_url: response.data.avatar_url || "",
       });
     });
+    authApi.loyalty().then((response) => setLoyaltyHistory(response.data)).catch(() => setLoyaltyHistory([]));
   }, []);
 
   function update(field, value) {
@@ -144,7 +154,7 @@ export function ProfilePage() {
         </div>
 
         <div className="settings-priority">
-          <span>Bạn là thành viên Bronze Priority</span>
+          <span>Hạng {loyalty.tier.label} · {Number(loyalty.points).toLocaleString("vi-VN")} điểm khả dụng</span>
         </div>
 
         <nav className="settings-menu">
@@ -188,6 +198,36 @@ export function ProfilePage() {
                 </div>
               </div>
             </form>
+
+            <section className="settings-panel compact">
+              <header>
+                <div>
+                  <h2>Điểm thành viên</h2>
+                  <p>1.000đ thanh toán cho chuyến đã hoàn thành = 1 điểm.</p>
+                </div>
+                <Trophy size={22} />
+              </header>
+              <div className="loyalty-summary">
+                <div><span>Điểm khả dụng</span><strong>{Number(loyalty.points).toLocaleString("vi-VN")}</strong></div>
+                <div><span>Tổng điểm tích lũy</span><strong>{Number(loyalty.lifetime).toLocaleString("vi-VN")}</strong></div>
+                <div><span>Hạng hiện tại</span><strong>{loyalty.tier.label}</strong></div>
+              </div>
+              {loyalty.next ? (
+                <p className="loyalty-next">Cần thêm {Number(loyalty.next.points_needed).toLocaleString("vi-VN")} điểm để lên hạng {loyalty.next.label}.</p>
+              ) : (
+                <p className="loyalty-next">Bạn đang ở hạng cao nhất.</p>
+              )}
+              <div className="loyalty-history">
+                {loyaltyHistory.slice(0, 5).map((item) => (
+                  <div key={item.id}>
+                    <span>{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>
+                    <strong>+{Number(item.points).toLocaleString("vi-VN")} điểm</strong>
+                    <small>{item.description}</small>
+                  </div>
+                ))}
+                {!loyaltyHistory.length && <small>Chưa có giao dịch điểm. Điểm sẽ được cộng sau khi chuyến đi hoàn thành.</small>}
+              </div>
+            </section>
 
             <section className="settings-panel compact">
               <header>

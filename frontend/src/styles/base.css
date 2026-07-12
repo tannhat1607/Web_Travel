@@ -355,7 +355,15 @@ td small { display: block; margin-top: 3px; }
 .loading span { width: 28px; height: 28px; border: 3px solid #cfe5e1; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.chat-widget { position: fixed; right: 20px; bottom: 20px; z-index: 50; }
+.chat-widget {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
 .chat-toggle {
   width: 58px;
   height: 58px;
@@ -364,6 +372,7 @@ td small { display: block; margin-top: 3px; }
   background: var(--primary);
   color: white;
   box-shadow: var(--shadow);
+  flex: 0 0 auto;
 }
 .chat-panel {
   width: min(380px, calc(100vw - 32px));
@@ -376,6 +385,7 @@ td small { display: block; margin-top: 3px; }
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+  align-self: flex-end;
 }
 .chat-panel header {
   display: flex;
@@ -436,7 +446,7 @@ td small { display: block; margin-top: 3px; }
 .chart-card { min-height: 350px; }
 .two-column-admin { grid-template-columns: 420px minmax(0, 1fr); align-items: start; }
 .promotion-admin-page {
-  grid-template-columns: minmax(520px, 560px) minmax(420px, 1fr);
+  grid-template-columns: 1fr;
 }
 .compact-form label { font-size: 13px; }
 .toolbar { display: flex; justify-content: flex-end; }

@@ -1,3 +1,4 @@
+import { Lock, Search, ShieldCheck, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminApi } from "../../api/adminApi";
 import { Pagination } from "../../components/common/Pagination.jsx";
@@ -29,28 +30,64 @@ export function UserManagePage() {
   return (
     <div className="admin-page">
       <section className="admin-title">
-        <span className="eyebrow">Người dùng</span>
-        <h1>Quản lý tài khoản</h1>
+        <div><span className="eyebrow">Người dùng</span><h1>Quản lý tài khoản</h1></div>
+        <p>Kiểm soát vai trò, trạng thái hoạt động, điểm thành viên và thông tin liên hệ của người dùng.</p>
       </section>
-      <div className="toolbar"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên, email, số điện thoại" /></div>
-      <div className="table-card">
-        <table>
-          <thead><tr><th>Họ tên</th><th>Email</th><th>Phone</th><th>Role</th><th>Trạng thái</th><th></th></tr></thead>
-          <tbody>
-            {visibleUsers.map((user) => (
-              <tr key={user.id}>
-                <td>{user.full_name}</td>
-                <td>{user.email}</td>
-                <td>{user.phone}</td>
-                <td><select value={user.role} onChange={(event) => changeRole(user, event.target.value)}><option value="customer">Customer</option><option value="admin">Admin</option></select></td>
-                <td>{user.is_active ? "Active" : "Locked"}</td>
-                <td><button className="ghost-button" onClick={() => toggle(user)}>{user.is_active ? "Khóa" : "Mở"}</button></td>
+
+      <section className="admin-table-card">
+        <div className="admin-list-toolbar">
+          <label className="tour-table-search">
+            <Search size={15} />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên, email, số điện thoại..." />
+          </label>
+          <Pagination page={page} pageSize={pageSize} itemCount={users.length} onChange={setPage} />
+        </div>
+        <div className="admin-table-scroll">
+          <table className="admin-data-table">
+            <thead>
+              <tr>
+                <th>Họ tên</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Điểm</th>
+                <th>Hạng</th>
+                <th>Role</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <Pagination page={page} pageSize={pageSize} itemCount={users.length} onChange={setPage} />
+            </thead>
+            <tbody>
+              {visibleUsers.map((user) => (
+                <tr key={user.id}>
+                  <td><strong>{user.full_name}</strong></td>
+                  <td>{user.email}</td>
+                  <td>{user.phone || "—"}</td>
+                  <td>
+                    <strong>{Number(user.loyalty_points || 0).toLocaleString("vi-VN")}</strong>
+                    <small className="muted-cell">Tổng tích lũy {Number(user.lifetime_points || 0).toLocaleString("vi-VN")}</small>
+                  </td>
+                  <td><span className={`loyalty-tier tier-${user.loyalty_tier?.key || "member"}`}>{user.loyalty_tier?.label || "Thành viên"}</span></td>
+                  <td>
+                    <select className="table-select" value={user.role} onChange={(event) => changeRole(user, event.target.value)}>
+                      <option value="client">Client</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td><span className={user.is_active ? "stock-pill available" : "stock-pill soldout"}>{user.is_active ? "Active" : "Locked"}</span></td>
+                  <td>
+                    <button className="ghost-button" onClick={() => toggle(user)}>
+                      {user.is_active ? <Lock size={15} /> : <Unlock size={15} />}
+                      {user.is_active ? "Khóa" : "Mở"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!visibleUsers.length && <p className="empty-report">Không tìm thấy tài khoản phù hợp.</p>}
+        <div className="admin-table-footer"><span>Hiển thị {visibleUsers.length} trong {users.length} tài khoản</span><ShieldCheck size={15} /></div>
+      </section>
     </div>
   );
 }

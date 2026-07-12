@@ -14,11 +14,21 @@ class Settings(BaseSettings):
     DATABASE_NAME: str = "travel_db"
     SECRET_KEY: str = "change-me"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    FRONTEND_URL: str = "http://127.0.0.1:5173"
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str | None = None
+    SMTP_USE_TLS: bool = True
     CHROMA_COLLECTION_NAME: str = "travel_knowledge"
     CHROMA_API_KEY: str | None = None
     CHROMA_TENANT: str | None = None
     CHROMA_DATABASE: str | None = None
     RAG_TOP_K: int = 4
+    # Chroma score is a distance: lower values are more relevant.
+    RAG_MAX_DISTANCE: float = 0.9
+    RAG_LEXICAL_MIN_SCORE: float = 0.15
     GOOGLE_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-2.5-flash-lite"
     GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-001"
