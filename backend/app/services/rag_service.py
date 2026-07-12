@@ -259,10 +259,6 @@ def _configure_runtime_env() -> None:
         "CHROMA_API_KEY": settings.CHROMA_API_KEY,
         "CHROMA_TENANT": settings.CHROMA_TENANT,
         "CHROMA_DATABASE": settings.CHROMA_DATABASE,
-        "LANGSMITH_API_KEY": settings.LANGSMITH_API_KEY,
-        "LANGSMITH_ENDPOINT": settings.LANGSMITH_ENDPOINT,
-        "LANGSMITH_PROJECT": settings.LANGSMITH_PROJECT,
-        "LANGSMITH_TRACING": settings.LANGSMITH_TRACING,
     }
     for key, value in values.items():
         if value:

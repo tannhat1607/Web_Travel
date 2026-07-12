@@ -10,7 +10,6 @@ reviews, contacts, admin management, and the RAG chatbot.
 - LangChain RAG
 - Chroma Cloud for vector storage
 - Gemini for embeddings and chat responses
-- LangSmith for tracing
 - Supabase Storage for tour images
 
 ## Project Flow
@@ -37,7 +36,6 @@ You need these keys before using RAG:
 
 - Gemini API key: `GOOGLE_API_KEY`
 - Chroma Cloud API key/database: `CHROMA_API_KEY`, `CHROMA_TENANT`, `CHROMA_DATABASE`
-- LangSmith API key: `LANGSMITH_API_KEY`
 
 Supabase is only required if you use image upload for tours.
 
@@ -80,10 +78,6 @@ GOOGLE_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-2.5-flash-lite
 GEMINI_EMBEDDING_MODEL=models/gemini-embedding-001
 
-LANGSMITH_TRACING=true
-LANGSMITH_ENDPOINT=https://apac.api.smith.langchain.com
-LANGSMITH_API_KEY=your_langsmith_api_key
-LANGSMITH_PROJECT=travel-rag
 ```
 
 Supabase image upload config:
@@ -207,20 +201,6 @@ Optional CLI flow:
 cd D:\Travel\backend
 chroma login
 chroma db connect your_database_name --env-file
-```
-
-## LangSmith Notes
-
-For APAC LangSmith accounts, keep:
-
-```env
-LANGSMITH_ENDPOINT=https://apac.api.smith.langchain.com
-```
-
-After upload/chat, traces should appear in the LangSmith project named by:
-
-```env
-LANGSMITH_PROJECT=travel-rag
 ```
 
 ## Common Issues
