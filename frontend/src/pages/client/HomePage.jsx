@@ -59,7 +59,7 @@ export function HomePage() {
         </div>
         <div className="hero-overlay" />
         <div className="hero-content page">
-          <span className="pill-badge"><Sparkles size={15} />Trợ lý du lịch thông minh</span>
+          {/* <span className="pill-badge"><Sparkles size={15} />Trợ lý du lịch thông minh</span> */}
           <h1>Khám phá hành trình mơ ước của bạn</h1>
           <p>Chọn tour, xem lịch trình và hỏi trợ lý AI bằng dữ liệu thật từ hệ thống.</p>
           <form className="stitch-search" onSubmit={search}>

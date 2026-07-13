@@ -10,6 +10,25 @@
 @import "./styles/admin-polish.css";
 @import "./styles/booking-checkout.css";
 
+:root {
+  --font-app: "Inter", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-app);
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea,
+optgroup,
+table,
+svg text {
+  font-family: var(--font-app);
+}
+
 /* Keep helper text visibly secondary to values entered by the user. */
 input::placeholder,
 textarea::placeholder {
