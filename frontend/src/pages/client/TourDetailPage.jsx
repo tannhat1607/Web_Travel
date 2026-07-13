@@ -55,6 +55,9 @@ export function TourDetailPage() {
   const [coverImage, ...supportImages] = gallery;
   const displayPrice = tour.effective_price || tour.price;
   const hasPromotion = tour.active_promotion && Number(displayPrice) < Number(tour.price);
+  const upcomingDepartures = (tour.departures || [])
+    .filter((departure) => departure.is_active && new Date(departure.departure_at).getTime() > Date.now())
+    .sort((first, second) => new Date(first.departure_at) - new Date(second.departure_at));
 
   return (
     <div className="page">
@@ -89,32 +92,34 @@ export function TourDetailPage() {
         </div>
       </section>
 
-      {tour.itineraries?.length > 0 && (
-        <section className="timeline-section">
-          <div className="section-heading compact">
-            <div>
-              <span className="eyebrow">Lịch trình chi tiết</span>
-              <h2>Từng ngày trong chuyến đi</h2>
-            </div>
+      <section className="public-departures" aria-labelledby="departure-heading">
+        <div className="public-departures-heading">
+          <div>
+            <span className="eyebrow"><CalendarDays size={16} />Lịch khởi hành</span>
+            <h2 id="departure-heading">Các chuyến sắp tới</h2>
           </div>
-          <div className="tour-timeline">
-            {tour.itineraries.map((item) => (
-              <article key={item.id}>
-                <span>Ngày {item.day_number}</span>
+          <p>{upcomingDepartures.length ? "Chọn chuyến phù hợp và kiểm tra số chỗ còn lại trước khi đặt." : "Hiện chưa có lịch khởi hành mới. Vui lòng liên hệ để được tư vấn."}</p>
+        </div>
+        {upcomingDepartures.length > 0 && (
+          <div className="public-departure-list">
+            {upcomingDepartures.map((departure) => (
+              <article key={departure.id}>
+                <CalendarDays size={20} />
                 <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.description}</p>
-                  {(item.meals || item.accommodation) && (
-                    <small>{[item.meals, item.accommodation].filter(Boolean).join(" · ")}</small>
-                  )}
+                  <strong>{new Date(departure.departure_at).toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}</strong>
+                  <span>{new Date(departure.departure_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
+                <span className={departure.available_slots > 0 ? "departure-available" : "departure-sold-out"}>
+                  {departure.available_slots > 0 ? `Còn ${departure.available_slots}/${departure.capacity} chỗ` : "Hết chỗ"}
+                </span>
+                {departure.available_slots > 0 && <Link to={`/tours/${tour.id}/book?departure=${departure.id}`}>Chọn chuyến</Link>}
               </article>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      <section className="detail-grid">
+      <section className="detail-sections" aria-label="Thông tin chi tiết tour">
         <article>
           <h2>Lịch trình</h2>
           <p>{tour.schedule || "Lịch trình đang được cập nhật."}</p>

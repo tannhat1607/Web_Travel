@@ -101,3 +101,15 @@ def delete_content(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Content not found")
     db.delete(item)
     db.commit()
+
+
+@router.get("/{slug}", response_model=ContentRead)
+def public_content_detail(slug: str, db: Session = Depends(get_db)) -> ContentItem:
+    item = (
+        db.query(ContentItem)
+        .filter(ContentItem.slug == slug, ContentItem.is_published.is_(True))
+        .first()
+    )
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Content not found")
+    return item

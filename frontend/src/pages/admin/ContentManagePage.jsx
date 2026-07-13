@@ -160,6 +160,8 @@ export function ContentManagePage() {
   async function togglePublish(item) {
     try {
       await contentApi.update(item.id, { is_published: !item.is_published });
+      setMessage(item.is_published ? "Đã ẩn nội dung." : "Đã đăng nội dung.");
+      setError("");
       await load();
     } catch (err) {
       setError(err.response?.data?.detail || "Không thể cập nhật trạng thái.");

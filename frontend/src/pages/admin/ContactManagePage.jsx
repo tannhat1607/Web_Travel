@@ -6,6 +6,7 @@ export function ContactManagePage() {
   const [contacts, setContacts] = useState([]);
   const [replyText, setReplyText] = useState({});
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   function load() {
     adminApi.contacts().then((response) => setContacts(response.data)).catch(() => setContacts([]));
@@ -15,13 +16,19 @@ export function ContactManagePage() {
 
   async function reply(id) {
     if (!replyText[id]?.trim()) {
-      setMessage("Vui lòng nhập nội dung phản hồi.");
+      setMessage("");
+      setError("Vui lòng nhập nội dung phản hồi.");
       return;
     }
-    await adminApi.replyContact(id, { reply: replyText[id] || "" });
-    setReplyText((prev) => ({ ...prev, [id]: "" }));
-    setMessage("Đã lưu phản hồi. Chế độ demo không gửi email ra ngoài.");
-    load();
+    setError("");
+    try {
+      await adminApi.replyContact(id, { reply: replyText[id] || "" });
+      setReplyText((prev) => ({ ...prev, [id]: "" }));
+      setMessage("Đã lưu phản hồi. Chế độ demo không gửi email ra ngoài.");
+      load();
+    } catch (err) {
+      setError(err.response?.data?.detail || "Không thể lưu phản hồi.");
+    }
   }
 
   return (
@@ -31,6 +38,7 @@ export function ContactManagePage() {
         <p>Quản lý câu hỏi tư vấn, ghi nhận phản hồi và trạng thái xử lý.</p>
       </section>
       {message && <div className="alert success">{message}</div>}
+      {error && <div className="alert error">{error}</div>}
 
       <section className="admin-table-card contact-inbox">
         <div className="admin-list-toolbar">

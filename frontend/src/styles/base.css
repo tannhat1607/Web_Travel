@@ -401,7 +401,6 @@ td small { display: block; margin-top: 3px; }
 .chat-messages { padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
 .chat-bubble { max-width: 88%; padding: 10px 12px; border-radius: var(--radius); line-height: 1.45; }
 .chat-bubble p { margin: 0; white-space: pre-wrap; }
-.chat-bubble small { display: block; margin-top: 7px; color: #475467; }
 .chat-bubble.bot { align-self: flex-start; background: #edf2f7; }
 .chat-bubble.user { align-self: flex-end; background: var(--primary); color: white; }
 .chat-input { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
@@ -467,23 +466,6 @@ td small { display: block; margin-top: 3px; }
   color: var(--muted);
 }
 .tour-image-link { position: relative; display: block; }
-.promotion-chip {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  display: inline-flex;
-  align-items: center;
-  max-width: calc(100% - 24px);
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: #0d6efd;
-  color: white;
-  font-size: 12px;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .price-stack { display: grid; gap: 3px; align-content: start; }
 .price-stack del,
 .promotion-callout del,

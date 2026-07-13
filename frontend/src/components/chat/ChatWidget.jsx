@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, MessageCircle, Send, X } from "lucide-react";
 import { chatApi } from "../../api/chatApi";
 
@@ -8,21 +8,25 @@ const WELCOME_MESSAGE = {
   text: "Mình là trợ lý du lịch. Bạn có thể hỏi về tour, lịch trình, giá hoặc điểm đến.",
 };
 
-function readStoredChat() {
+function readStoredChat(storageKey, allowLegacyGuestChat = false) {
   try {
-    const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    const storedValue = localStorage.getItem(storageKey)
+      || (allowLegacyGuestChat ? localStorage.getItem(STORAGE_KEY) : null);
+    const value = JSON.parse(storedValue || "null");
     return value && typeof value === "object" ? value : {};
   } catch {
     return {};
   }
 }
 
-export function ChatWidget() {
-  const storedChat = readStoredChat();
+export function ChatWidget({ identity = "guest" }) {
+  const scopedStorageKey = `${STORAGE_KEY}:${identity}`;
+  const storedChat = readStoredChat(scopedStorageKey, identity === "guest");
   const [open, setOpen] = useState(false);
   const [sessionId, setSessionId] = useState(storedChat.sessionId || null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const messagesRef = useRef(null);
   const [items, setItems] = useState(
     Array.isArray(storedChat.items) && storedChat.items.length
       ? storedChat.items
@@ -32,13 +36,24 @@ export function ChatWidget() {
   useEffect(() => {
     try {
       localStorage.setItem(
-        STORAGE_KEY,
+        scopedStorageKey,
         JSON.stringify({ sessionId, items: items.slice(-50) }),
       );
     } catch {
       // Chat remains usable when localStorage is disabled or full.
     }
-  }, [sessionId, items]);
+  }, [sessionId, items, scopedStorageKey]);
+
+  useEffect(() => {
+    if (!open || !messagesRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      messagesRef.current?.scrollTo({
+        top: messagesRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [items, loading, open]);
 
   async function sendMessage(event) {
     event.preventDefault();
@@ -56,7 +71,6 @@ export function ChatWidget() {
         {
           role: "bot",
           text: response.data.answer,
-          sources: response.data.sources || [],
         },
       ]);
     } catch {
@@ -80,11 +94,10 @@ export function ChatWidget() {
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Đóng chatbot"><X size={18} /></button>
           </header>
-          <div className="chat-messages">
+          <div className="chat-messages" ref={messagesRef}>
             {items.map((item, index) => (
               <div className={`chat-bubble ${item.role}`} key={`${item.role}-${index}`}>
                 <p>{item.text}</p>
-                {item.sources?.length > 0 && <small>Nguồn: {item.sources.join(", ")}</small>}
               </div>
             ))}
             {loading && <div className="chat-bubble bot"><p>Đang tìm thông tin...</p></div>}

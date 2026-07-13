@@ -16,13 +16,21 @@ export function UserManagePage() {
   useEffect(() => load(), [page]);
 
   async function toggle(user) {
-    await adminApi.updateUser(user.id, { is_active: !user.is_active });
-    load();
+    try {
+      await adminApi.updateUser(user.id, { is_active: !user.is_active });
+      load();
+    } catch {
+      // The global Admin status reports the API error.
+    }
   }
 
   async function changeRole(user, role) {
-    await adminApi.updateUser(user.id, { role });
-    load();
+    try {
+      await adminApi.updateUser(user.id, { role });
+      load();
+    } catch {
+      // The global Admin status reports the API error.
+    }
   }
 
   const visibleUsers = users.filter((user) => `${user.full_name} ${user.email} ${user.phone || ""}`.toLowerCase().includes(search.toLowerCase()));

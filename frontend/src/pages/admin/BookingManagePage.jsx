@@ -27,9 +27,13 @@ export function BookingManagePage() {
 
   async function runAction(action, successMessage) {
     setMessage("");
-    await action();
-    setMessage(successMessage);
-    load();
+    try {
+      await action();
+      setMessage(successMessage);
+      load();
+    } catch {
+      // The global Admin status reports the API error.
+    }
   }
 
   async function createCashPayment(booking) {

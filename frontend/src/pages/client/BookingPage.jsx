@@ -1,6 +1,6 @@
 import { CheckCircle2, House, ReceiptText, TicketPercent, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { bookingApi } from "../../api/bookingApi";
 import { promotionApi } from "../../api/promotionApi";
 import { tourApi } from "../../api/tourApi";
@@ -11,6 +11,7 @@ import { formatCurrency } from "../../utils/format";
 export function BookingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [tour, setTour] = useState(null);
   const [promotions, setPromotions] = useState([]);
   const [promotionCode, setPromotionCode] = useState("");
@@ -41,6 +42,18 @@ export function BookingPage() {
 
   useEffect(() => {
     if (!tour) return;
+    const requestedDeparture = searchParams.get("departure");
+    const isAvailable = (tour.departures || []).some((departure) => (
+      String(departure.id) === requestedDeparture
+      && departure.is_active
+      && departure.available_slots > 0
+      && new Date(departure.departure_at).getTime() > Date.now()
+    ));
+    if (isAvailable) update("departure_id", requestedDeparture);
+  }, [tour, searchParams]);
+
+  useEffect(() => {
+    if (!tour) return;
     loadQuote(appliedCode);
   }, [tour, form.adult_count, form.child_count, form.departure_id, appliedCode]);
 
@@ -52,6 +65,11 @@ export function BookingPage() {
   const adultSubtotal = unitPrice * Number(form.adult_count || 0);
   const childUnitPrice = unitPrice * 0.7;
   const childSubtotal = childUnitPrice * Number(form.child_count || 0);
+  const upcomingDepartures = (tour?.departures || []).filter((departure) => (
+    departure.is_active
+    && departure.available_slots > 0
+    && new Date(departure.departure_at).getTime() > Date.now()
+  ));
 
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -152,9 +170,9 @@ export function BookingPage() {
           <label>Email<input type="email" value={form.customer_email} onChange={(event) => update("customer_email", event.target.value)} required /></label>
           <label>Số điện thoại<input value={form.customer_phone} onChange={(event) => update("customer_phone", event.target.value)} required /></label>
           <label>Ngày khởi hành
-            <select value={form.departure_id} onChange={(event) => update("departure_id", event.target.value)} required={Boolean(tour?.departures?.length)}>
-              <option value="">{tour?.departures?.length ? "Chọn ngày khởi hành" : "Liên hệ để xác nhận lịch"}</option>
-              {(tour?.departures || []).filter((item) => item.is_active && item.available_slots > 0).map((item) => <option value={item.id} key={item.id}>{new Date(item.departure_at).toLocaleString("vi-VN")} · còn {item.available_slots} chỗ</option>)}
+            <select value={form.departure_id} onChange={(event) => update("departure_id", event.target.value)} required={Boolean(upcomingDepartures.length)}>
+              <option value="">{upcomingDepartures.length ? "Chọn ngày khởi hành" : "Liên hệ để xác nhận lịch"}</option>
+              {upcomingDepartures.map((item) => <option value={item.id} key={item.id}>{new Date(item.departure_at).toLocaleString("vi-VN")} · còn {item.available_slots} chỗ</option>)}
             </select>
           </label>
           <div className="form-row">

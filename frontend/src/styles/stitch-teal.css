@@ -484,13 +484,13 @@ body {
   font-size: 12px;
 }
 
-.itinerary-list {
+.departure-list {
   display: grid;
   gap: 10px;
   margin-top: 12px;
 }
 
-.itinerary-list article {
+.departure-list article {
   position: relative;
   padding: 12px 44px 12px 12px;
   border: 1px solid var(--line);
@@ -498,12 +498,12 @@ body {
   background: white;
 }
 
-.itinerary-list p {
+.departure-list p {
   margin: 6px 0;
   color: var(--muted);
 }
 
-.itinerary-list .icon-button {
+.departure-list .icon-button {
   position: absolute;
   top: 10px;
   right: 10px;

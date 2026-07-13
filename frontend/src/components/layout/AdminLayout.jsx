@@ -2,6 +2,7 @@ import { BadgePercent, BarChart3, Bell, BookOpenText, CalendarCheck, CircleHelp,
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { getStoredUser, logout } from "../../store/authStore";
+import { AdminActionStatus } from "../admin/AdminActionStatus.jsx";
 
 const navItems = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, end: true },
@@ -36,6 +37,7 @@ export function AdminLayout() {
 
   return (
     <div className={sidebarCollapsed ? "admin-shell sidebar-collapsed" : "admin-shell"}>
+      <AdminActionStatus />
       <aside className="admin-sidebar">
         <button
           className="admin-sidebar-toggle"

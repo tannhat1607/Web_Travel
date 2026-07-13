@@ -5,13 +5,16 @@ import { formatCurrency } from "../../utils/format";
 export function TourCard({ tour }) {
   const displayPrice = tour.effective_price || tour.price;
   const hasPromotion = tour.active_promotion && Number(displayPrice) < Number(tour.price);
+  const averageRating = Number(tour.average_rating ?? 5).toFixed(1);
+  const reviewCount = Number(tour.review_count || 0);
 
   return (
     <article className="tour-card">
       <Link to={`/tours/${tour.id}`} className="tour-image-link">
         <img src={tour.image_url || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80"} alt={tour.title} />
-        <span className="rating-chip"><Star size={15} fill="currentColor" />4.9</span>
-        {hasPromotion && <span className="promotion-chip">{tour.active_promotion.title}</span>}
+        <span className="rating-chip" title={reviewCount ? `${reviewCount} đánh giá` : "Chưa có đánh giá"}>
+          <Star size={15} fill="currentColor" />{averageRating}
+        </span>
       </Link>
       <div className="tour-card-body">
         <div className="tour-card-meta">

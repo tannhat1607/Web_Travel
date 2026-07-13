@@ -9,3 +9,16 @@
 @import "./styles/auth-modal.css";
 @import "./styles/admin-polish.css";
 @import "./styles/booking-checkout.css";
+
+/* Keep helper text visibly secondary to values entered by the user. */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(70, 89, 115, 0.42);
+  font-weight: 500;
+  opacity: 1;
+}
+
+input:focus::placeholder,
+textarea:focus::placeholder {
+  color: rgba(70, 89, 115, 0.32);
+}

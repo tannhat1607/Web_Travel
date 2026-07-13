@@ -16,14 +16,22 @@ export function ReviewManagePage() {
   useEffect(() => load(), [filter, page]);
 
   async function toggle(review) {
-    await adminApi.updateReview(review.id, { is_visible: !review.is_visible });
-    load();
+    try {
+      await adminApi.updateReview(review.id, { is_visible: !review.is_visible });
+      load();
+    } catch {
+      // The global Admin status reports the API error.
+    }
   }
 
   async function remove(id) {
     if (!window.confirm("Xóa review này?")) return;
-    await adminApi.deleteReview(id);
-    load();
+    try {
+      await adminApi.deleteReview(id);
+      load();
+    } catch {
+      // The global Admin status reports the API error.
+    }
   }
 
   return (

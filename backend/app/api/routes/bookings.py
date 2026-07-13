@@ -12,8 +12,9 @@ from app.models.tour import Tour, TourDeparture
 from app.models.user import User
 from app.schemas.booking import BookingCreate, BookingQuoteCreate, BookingQuoteRead, BookingRead, RefundRequestCreate
 from app.schemas.payment import PaymentRead, PaymentSimulationCreate
-from app.services.loyalty_service import calculate_loyalty_discount
 from app.services.booking_service import restore_booking_slots
+from app.services.departure_service import is_upcoming_departure
+from app.services.loyalty_service import calculate_loyalty_discount
 from app.services.promotion_service import get_code_promotion, normalize_promotion_code, quote_booking_total
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
@@ -33,6 +34,20 @@ def validate_passenger_count(adult_count: int, child_count: int) -> int:
     return total_people
 
 
+def get_bookable_departure(db: Session, tour: Tour, departure_id: int | None) -> TourDeparture | None:
+    if departure_id is None:
+        return None
+    departure = db.get(TourDeparture, departure_id)
+    if (
+        departure is None
+        or departure.tour_id != tour.id
+        or not departure.is_active
+        or not is_upcoming_departure(departure.departure_at)
+    ):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Departure is not available")
+    return departure
+
+
 @router.post("/quote", response_model=BookingQuoteRead)
 def quote_booking(
     payload: BookingQuoteCreate,
@@ -40,7 +55,10 @@ def quote_booking(
     current_user: User = Depends(get_current_user),
 ) -> BookingQuoteRead:
     tour = get_bookable_tour(db, payload.tour_id)
-    validate_passenger_count(payload.adult_count, payload.child_count)
+    total_people = validate_passenger_count(payload.adult_count, payload.child_count)
+    departure = get_bookable_departure(db, tour, payload.departure_id)
+    if departure and departure.available_slots < total_people:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough available slots")
     code_promotion = None
     normalized_code = normalize_promotion_code(payload.promotion_code)
     if normalized_code:
@@ -71,9 +89,7 @@ def create_booking(
 ) -> Booking:
     tour = get_bookable_tour(db, payload.tour_id)
     total_people = validate_passenger_count(payload.adult_count, payload.child_count)
-    departure = db.get(TourDeparture, payload.departure_id) if payload.departure_id else None
-    if departure and (departure.tour_id != tour.id or not departure.is_active):
-        raise HTTPException(status_code=400, detail="Departure is not available")
+    departure = get_bookable_departure(db, tour, payload.departure_id)
     inventory = departure or tour
     if inventory.available_slots < total_people:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough available slots")

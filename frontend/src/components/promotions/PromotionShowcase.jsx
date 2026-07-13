@@ -1,5 +1,5 @@
 import { BadgePercent, ChevronRight, Copy, Gift, Info } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatCurrency } from "../../utils/format";
 
 function formatDiscount(promotion) {
@@ -7,13 +7,25 @@ function formatDiscount(promotion) {
   return formatCurrency(promotion.discount_value);
 }
 
-export function PromotionShowcase({ promotions = [], compact = false, onCodeSelect }) {
+export function PromotionShowcase({ promotions = [], compact = false, onCodeSelect, showAll = false }) {
   const [copiedCode, setCopiedCode] = useState("");
   const [activeBanner, setActiveBanner] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const bannerTrackRef = useRef(null);
   const dragRef = useRef(null);
   const visiblePromotions = promotions.filter((promotion) => promotion.code);
   const bannerPromotions = visiblePromotions.filter((promotion) => promotion.banner_image_url);
+
+  useEffect(() => {
+    if (compact || bannerPromotions.length <= 1 || isCarouselPaused) return undefined;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+
+    const timer = window.setTimeout(() => {
+      goToBanner((activeBanner + 1) % bannerPromotions.length);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [activeBanner, bannerPromotions.length, compact, isCarouselPaused]);
 
   function copyCode(promotion) {
     navigator.clipboard?.writeText(promotion.code);
@@ -33,6 +45,7 @@ export function PromotionShowcase({ promotions = [], compact = false, onCodeSele
   }
 
   function startBannerDrag(event) {
+    setIsCarouselPaused(true);
     if (event.pointerType !== "mouse" || event.button !== 0) return;
     dragRef.current = { x: event.clientX, scrollLeft: event.currentTarget.scrollLeft };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -44,6 +57,7 @@ export function PromotionShowcase({ promotions = [], compact = false, onCodeSele
   }
 
   function endBannerDrag(event) {
+    setIsCarouselPaused(false);
     if (!dragRef.current) return;
     dragRef.current = null;
     const index = Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth);
@@ -55,7 +69,13 @@ export function PromotionShowcase({ promotions = [], compact = false, onCodeSele
   return (
     <section id={compact ? undefined : "promotions"} className={compact ? "promo-showcase compact" : "promo-showcase"}>
       {!compact && (bannerPromotions.length ? (
-        <div className="promo-banner-carousel">
+        <div
+          className="promo-banner-carousel"
+          onMouseEnter={() => setIsCarouselPaused(true)}
+          onMouseLeave={() => setIsCarouselPaused(false)}
+          onFocusCapture={() => setIsCarouselPaused(true)}
+          onBlurCapture={() => setIsCarouselPaused(false)}
+        >
           <div
             className="promo-banner-track"
             ref={bannerTrackRef}
@@ -116,7 +136,7 @@ export function PromotionShowcase({ promotions = [], compact = false, onCodeSele
       </div>
 
       <div className="promo-coupon-row">
-        {visiblePromotions.slice(0, compact ? 3 : 6).map((promotion) => (
+        {visiblePromotions.slice(0, compact ? 3 : showAll ? visiblePromotions.length : 6).map((promotion) => (
           <article className="promo-coupon-card" key={promotion.id}>
             <div className="promo-coupon-top">
               <span><BadgePercent size={15} /></span>

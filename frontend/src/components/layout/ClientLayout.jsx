@@ -73,6 +73,7 @@ export function ClientLayout() {
           <NavLink to="/about">Giới thiệu</NavLink>
           <NavLink to="/destinations">Điểm đến</NavLink>
           <NavLink to="/tours">Tour</NavLink>
+          <NavLink to="/promotions">Khuyến mãi</NavLink>
           <NavLink to="/travel-guides">Cẩm nang</NavLink>
           <NavLink to="/contact">Liên hệ</NavLink>
           {user && <NavLink to="/my-bookings">Đặt chỗ</NavLink>}
@@ -119,7 +120,7 @@ export function ClientLayout() {
                     <Link to="/my-bookings" onClick={() => setAccountOpen(false)}>
                       <History size={20} />Giao dịch & thanh toán
                     </Link>
-                    <Link to="/#promotions" onClick={() => setAccountOpen(false)}>
+                    <Link to="/promotions" onClick={() => setAccountOpen(false)}>
                       <Gift size={20} />Khuyến mãi
                     </Link>
                     <Link to="/notifications" onClick={() => setAccountOpen(false)}>
@@ -159,6 +160,7 @@ export function ClientLayout() {
         <nav>
           <strong>Sản phẩm</strong>
           <Link to="/tours">Tour du lịch</Link>
+          <Link to="/promotions">Khuyến mãi</Link>
           <Link to="/destinations">Điểm đến</Link>
           <Link to="/travel-guides">Hoạt động & vui chơi</Link>
           <Link to="/contact">Tư vấn lịch trình</Link>
@@ -171,7 +173,7 @@ export function ClientLayout() {
           <span>Điều khoản & điều kiện</span>
         </div>
       </footer>
-      <ChatWidget />
+      <ChatWidget key={user?.id ? `user-${user.id}` : "guest"} identity={user?.id ? `user-${user.id}` : "guest"} />
     </>
   );
 }

@@ -135,10 +135,14 @@ export function PromotionManagePage() {
 
   async function remove(id) {
     if (!window.confirm("Xóa khuyến mãi này?")) return;
-    await adminApi.deletePromotion(id);
-    setMessage("Đã xóa khuyến mãi và đồng bộ RAG.");
-    if (editingId === id) resetForm();
-    load();
+    try {
+      await adminApi.deletePromotion(id);
+      setMessage("Đã xóa khuyến mãi và đồng bộ RAG.");
+      if (editingId === id) resetForm();
+      load();
+    } catch (err) {
+      setError(err.response?.data?.detail || "Không thể xóa khuyến mãi.");
+    }
   }
 
   function copyCode(code) {

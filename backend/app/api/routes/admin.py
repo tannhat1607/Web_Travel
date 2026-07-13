@@ -36,6 +36,7 @@ from app.schemas.tour import (
 )
 from app.schemas.upload import ImageUploadRead
 from app.schemas.user import UserRead, UserUpdate
+from app.services.departure_service import is_upcoming_departure
 from app.services.promotion_service import normalize_promotion_code
 from app.services.booking_service import restore_booking_slots
 from app.services.loyalty_service import award_booking_points
@@ -432,6 +433,8 @@ def delete_tour_itinerary(
 def create_departure(tour_id: int, payload: TourDepartureCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)) -> TourDeparture:
     if db.get(Tour, tour_id) is None:
         raise HTTPException(status_code=404, detail="Tour not found")
+    if not is_upcoming_departure(payload.departure_at):
+        raise HTTPException(status_code=400, detail="Departure time must be in the future")
     departure = TourDeparture(tour_id=tour_id, **payload.model_dump())
     db.add(departure); db.commit(); db.refresh(departure)
     return departure
@@ -441,6 +444,8 @@ def create_departure(tour_id: int, payload: TourDepartureCreate, db: Session = D
 def update_departure(departure_id: int, payload: TourDepartureUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin)) -> TourDeparture:
     departure = db.get(TourDeparture, departure_id)
     if departure is None: raise HTTPException(status_code=404, detail="Departure not found")
+    if payload.departure_at is not None and not is_upcoming_departure(payload.departure_at):
+        raise HTTPException(status_code=400, detail="Departure time must be in the future")
     for field, value in payload.model_dump(exclude_unset=True).items(): setattr(departure, field, value)
     db.commit(); db.refresh(departure); return departure
 

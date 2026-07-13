@@ -3,12 +3,14 @@ from __future__ import annotations
 import logging
 import os
 import re
+import unicodedata
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.knowledge import KnowledgeDocument
+from app.models.tour import Tour
 
 
 logger = logging.getLogger(__name__)
@@ -64,12 +66,22 @@ def _ingest_knowledge_documents(db: Session) -> int:
 
 
 def answer_question(db: Session, question: str, top_k: int | None = None) -> RagAnswer:
+    small_talk_answer = _answer_small_talk(question)
+    if small_talk_answer is not None:
+        return small_talk_answer
+    direct_answer = _answer_tour_lookup(db, question)
+    if direct_answer is not None:
+        return direct_answer
     contexts = retrieve_contexts(db=db, question=question, top_k=top_k or settings.RAG_TOP_K)
     answer = _generate_answer(question=question, contexts=contexts)
     return RagAnswer(answer=answer, contexts=contexts)
 
 
 def retrieve_contexts(db: Session, question: str, top_k: int) -> list[RetrievedContext]:
+    lexical_contexts = _retrieve_contexts_from_database(db, question, top_k)
+    if lexical_contexts:
+        return lexical_contexts
+
     try:
         vector_store = _get_vector_store()
         results = vector_store.similarity_search_with_score(question, k=top_k)
@@ -88,7 +100,9 @@ def retrieve_contexts(db: Session, question: str, top_k: int) -> list[RetrievedC
                     score=distance,
                 )
             )
-        return contexts
+        if contexts:
+            return contexts
+        return _retrieve_contexts_from_database(db, question, top_k)
     except Exception:
         logger.exception("Chroma retrieval failed; using database lexical fallback")
         return _retrieve_contexts_from_database(db, question, top_k)
@@ -126,12 +140,123 @@ def _retrieve_contexts_from_database(
 
 
 def _search_terms(value: str) -> set[str]:
-    stop_words = {"và", "là", "có", "cho", "tôi", "mình", "về", "của", "ở", "được", "không"}
+    normalized_value = _normalize_text(value)
+    stop_words = {
+        "va", "la", "co", "cho", "toi", "minh", "ve", "cua", "o", "duoc", "khong",
+        "giup", "hoi", "cho", "app", "travelora",
+    }
     return {
         token
-        for token in re.findall(r"[\wÀ-ỹ]+", value.lower(), flags=re.UNICODE)
+        for token in re.findall(r"[a-z0-9]+", normalized_value)
         if len(token) >= 2 and token not in stop_words
     }
+
+
+def _normalize_text(value: str) -> str:
+    decomposed = unicodedata.normalize("NFD", value.casefold().replace("đ", "d"))
+    without_accents = "".join(character for character in decomposed if not unicodedata.combining(character))
+    return " ".join(without_accents.split())
+
+
+def _answer_small_talk(question: str) -> RagAnswer | None:
+    """Handle short conversational messages without calling external AI services."""
+    normalized = _normalize_text(question).strip(" .,!?:;-")
+    tokens = set(normalized.split())
+
+    greeting_words = {"xin", "chao", "hello", "hi", "hey", "alo", "bot", "ad", "ban", "travelora"}
+    if tokens and tokens <= greeting_words and tokens & {"chao", "hello", "hi", "hey", "alo"}:
+        return RagAnswer(
+            answer="Xin chào. Mình là trợ lý du lịch Travelora. Bạn muốn tìm tour, xem giá, lịch trình hay điểm đến nào?",
+            contexts=[],
+        )
+
+    thanks_words = {"cam", "on", "ban", "nhe", "nha", "nhieu", "rat", "thanks", "thank", "you"}
+    if tokens and tokens <= thanks_words and ("thanks" in tokens or {"cam", "on"} <= tokens):
+        return RagAnswer(answer="Không có gì. Khi cần tìm tour hoặc kiểm tra lịch trình, bạn cứ hỏi mình nhé.", contexts=[])
+
+    goodbye_words = {"tam", "biet", "bye", "goodbye", "hen", "gap", "lai", "nhe"}
+    if tokens and tokens <= goodbye_words and (
+        "bye" in tokens or {"tam", "biet"} <= tokens or {"hen", "gap", "lai"} <= tokens
+    ):
+        return RagAnswer(answer="Tạm biệt. Chúc bạn có một chuyến đi thật vui.", contexts=[])
+
+    if normalized in {"ok", "okay", "oke", "duoc roi"}:
+        return RagAnswer(answer="Được rồi. Bạn cần thêm thông tin tour nào thì cứ hỏi mình.", contexts=[])
+
+    if normalized in {"ban khoe khong", "chatbot khoe khong"}:
+        return RagAnswer(answer="Mình vẫn hoạt động tốt và sẵn sàng giúp bạn tìm chuyến đi phù hợp.", contexts=[])
+
+    help_phrases = {"ban lam duoc gi", "chatbot lam duoc gi", "giup toi voi", "huong dan toi"}
+    if normalized in help_phrases:
+        return RagAnswer(
+            answer="Mình có thể tìm tour, kiểm tra giá và số chỗ, giải thích lịch trình, khuyến mãi, cách đặt tour và chính sách hoàn tiền.",
+            contexts=[],
+        )
+
+    return None
+
+
+def _answer_tour_lookup(db: Session, question: str) -> RagAnswer | None:
+    """Answer simple tour availability questions locally without Chroma/Gemini latency."""
+    normalized_question = _normalize_text(question)
+    if "tour" not in normalized_question:
+        return None
+
+    tours = db.query(Tour).filter(Tour.is_active.is_(True)).order_by(Tour.created_at.desc()).all()
+    destination_matches = [
+        tour
+        for tour in tours
+        if _normalize_text(tour.destination) and _normalize_text(tour.destination) in normalized_question
+    ]
+
+    matches = destination_matches
+    if not matches:
+        generic_terms = {
+            "tour", "du", "lich", "di", "den", "nao", "dang", "ban", "gia", "bao", "nhieu",
+            "ngay", "dem", "con", "cho", "tim", "muon", "xem",
+        }
+        query_terms = _search_terms(question) - generic_terms
+        if query_terms:
+            matches = [
+                tour
+                for tour in tours
+                if query_terms <= _search_terms(f"{tour.title} {tour.destination}")
+            ]
+
+    if not matches:
+        return None
+
+    matches = matches[:5]
+    contexts = [
+        RetrievedContext(
+            document_id=0,
+            title=tour.title,
+            source_type="tour",
+            source_id=tour.id,
+            content=(
+                f"{tour.title}. Điểm đến {tour.destination}. "
+                f"Thời lượng {tour.duration_days} ngày {tour.duration_nights} đêm. "
+                f"Giá hiện tại {_format_vnd(tour.effective_price)}. Còn {tour.available_slots} chỗ."
+            ),
+            score=0.0,
+        )
+        for tour in matches
+    ]
+    lines = [
+        f"• {tour.title} — {_format_vnd(tour.effective_price)}, còn {tour.available_slots} chỗ. Xem: /tours/{tour.id}"
+        for tour in matches
+    ]
+    destination = destination_matches[0].destination if destination_matches else None
+    heading = (
+        f"Có. Travelora hiện có {len(matches)} tour phù hợp tại {destination}:"
+        if destination
+        else f"Có. Travelora hiện có {len(matches)} tour phù hợp:"
+    )
+    return RagAnswer(answer=f"{heading}\n" + "\n".join(lines), contexts=contexts)
+
+
+def _format_vnd(value) -> str:
+    return f"{int(value):,}".replace(",", ".") + " VND/người"
 
 
 def format_contexts(contexts: list[RetrievedContext]) -> str:

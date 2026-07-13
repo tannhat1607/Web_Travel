@@ -8,6 +8,8 @@ import { AboutPage } from "./pages/client/AboutPage.jsx";
 import { ContactPage } from "./pages/client/ContactPage.jsx";
 import { DestinationsPage } from "./pages/client/DestinationsPage.jsx";
 import { TravelGuidesPage } from "./pages/client/TravelGuidesPage.jsx";
+import { TravelGuideDetailPage } from "./pages/client/TravelGuideDetailPage.jsx";
+import { PromotionsPage } from "./pages/client/PromotionsPage.jsx";
 import { TourListPage } from "./pages/client/TourListPage.jsx";
 import { TourDetailPage } from "./pages/client/TourDetailPage.jsx";
 import { BookingPage } from "./pages/client/BookingPage.jsx";
@@ -44,6 +46,8 @@ export default function App() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/destinations" element={<DestinationsPage />} />
         <Route path="/travel-guides" element={<TravelGuidesPage />} />
+        <Route path="/travel-guides/:slug" element={<TravelGuideDetailPage />} />
+        <Route path="/promotions" element={<PromotionsPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/tours" element={<TourListPage />} />
         <Route path="/tours/:id" element={<TourDetailPage />} />

@@ -137,6 +137,8 @@ class TourRead(TourBase):
     updated_at: datetime
     effective_price: Decimal | None = None
     active_promotion: TourPromotionRead | None = None
+    average_rating: float = 5.0
+    review_count: int = 0
     images: list[TourImageRead] = []
     itineraries: list[TourItineraryRead] = []
     departures: list[TourDepartureRead] = []
